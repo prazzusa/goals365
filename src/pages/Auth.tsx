@@ -282,12 +282,12 @@ const Auth = () => {
 
             {!isSignUp && (
               <div className="text-right">
-                <button
-                  type="button"
+                <Link
+                  to="/forgot-password"
                   className="text-sm text-primary hover:underline"
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
             )}
 
