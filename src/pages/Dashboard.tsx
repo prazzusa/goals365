@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
-import { Heart, LogOut, Target, Briefcase, Dumbbell, Plus, Settings } from "lucide-react";
+import { Heart, LogOut, Target, Briefcase, Dumbbell, ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOnboarding } from "@/hooks/useOnboarding";
@@ -27,7 +27,7 @@ const Dashboard = () => {
 
   const handleSignOut = async () => {
     await signOut();
-    toast.success("You've been signed out successfully.");
+    toast.success("Take care! See you soon.");
     navigate("/");
   };
 
@@ -41,30 +41,45 @@ const Dashboard = () => {
 
   const goalCategories = [
     {
-      title: "Personal Goals",
+      key: "personal" as const,
+      title: "Personal",
+      subtitle: "Nurture your inner self",
       icon: Target,
       goals: progress?.personal_goals || [],
-      color: "bg-rose-500/10 text-rose-500",
+      gradient: "from-rose-500/10 to-orange-500/10",
+      iconBg: "bg-rose-500/10",
+      iconColor: "text-rose-500",
     },
     {
-      title: "Professional Goals",
+      key: "professional" as const,
+      title: "Professional",
+      subtitle: "Grow mindfully",
       icon: Briefcase,
       goals: progress?.professional_goals || [],
-      color: "bg-blue-500/10 text-blue-500",
+      gradient: "from-blue-500/10 to-indigo-500/10",
+      iconBg: "bg-blue-500/10",
+      iconColor: "text-blue-500",
     },
     {
-      title: "Fitness Goals",
+      key: "fitness" as const,
+      title: "Fitness",
+      subtitle: "Honor your body",
       icon: Dumbbell,
       goals: progress?.fitness_goals || [],
-      color: "bg-emerald-500/10 text-emerald-500",
+      gradient: "from-emerald-500/10 to-teal-500/10",
+      iconBg: "bg-emerald-500/10",
+      iconColor: "text-emerald-500",
     },
   ];
+
+  const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "";
+  const greeting = getGreeting();
 
   return (
     <>
       <Helmet>
         <title>Dashboard - GoalSync</title>
-        <meta name="description" content="Track and manage your personal, professional, and fitness goals." />
+        <meta name="description" content="Your personal space for growth and reflection." />
       </Helmet>
 
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -80,19 +95,14 @@ const Dashboard = () => {
               </span>
             </Link>
 
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" className="rounded-xl">
-                <Settings className="w-5 h-5" />
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleSignOut}
-                className="rounded-xl gap-2"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              onClick={handleSignOut}
+              className="rounded-xl gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </Button>
           </div>
         </header>
 
@@ -102,84 +112,75 @@ const Dashboard = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
+            className="mb-10 text-center"
           >
-            <h1 className="text-3xl font-display font-bold mb-2">
-              Welcome back{user?.user_metadata?.full_name ? `, ${user.user_metadata.full_name}` : ""}!
+            <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">
+              {greeting}{firstName ? `, ${firstName}` : ""}
             </h1>
-            <p className="text-muted-foreground">
-              Let's continue your journey. Here are your goals:
+            <p className="text-muted-foreground text-lg">
+              What would you like to focus on today?
             </p>
           </motion.div>
 
-          {/* Goals Grid */}
-          <div className="grid md:grid-cols-3 gap-6">
+          {/* Goal Categories */}
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {goalCategories.map((category, index) => (
               <motion.div
-                key={category.title}
+                key={category.key}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-card rounded-2xl border border-border p-6"
               >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${category.color}`}>
-                    <category.icon className="w-5 h-5" />
+                <Link
+                  to={`/goals/${category.key}`}
+                  className={`block p-6 rounded-2xl bg-gradient-to-br ${category.gradient} border border-border/50 hover:border-primary/30 hover:shadow-lg transition-all duration-300 group`}
+                >
+                  <div className={`w-14 h-14 rounded-2xl ${category.iconBg} flex items-center justify-center mb-4`}>
+                    <category.icon className={`w-7 h-7 ${category.iconColor}`} />
                   </div>
-                  <h2 className="text-lg font-semibold">{category.title}</h2>
-                </div>
+                  
+                  <h2 className="text-xl font-semibold mb-1">{category.title}</h2>
+                  <p className="text-sm text-muted-foreground mb-4">{category.subtitle}</p>
 
-                {category.goals.length > 0 ? (
-                  <ul className="space-y-2 mb-4">
-                    {category.goals.map((goal, i) => (
-                      <li
-                        key={i}
-                        className="flex items-center gap-2 text-sm text-muted-foreground"
-                      >
-                        <div className="w-2 h-2 rounded-full bg-primary" />
-                        {goal}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground mb-4">
-                    No goals set yet.
-                  </p>
-                )}
+                  {category.goals.length > 0 ? (
+                    <div className="space-y-2 mb-4">
+                      {category.goals.slice(0, 2).map((goal, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+                          <span className="truncate">{goal}</span>
+                        </div>
+                      ))}
+                      {category.goals.length > 2 && (
+                        <p className="text-xs text-muted-foreground">
+                          +{category.goals.length - 2} more
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mb-4 italic">
+                      No goals yet
+                    </p>
+                  )}
 
-                <Button variant="outline" className="w-full rounded-xl gap-2">
-                  <Plus className="w-4 h-4" />
-                  Add Goal
-                </Button>
+                  <div className="flex items-center gap-2 text-sm font-medium text-primary group-hover:gap-3 transition-all">
+                    <span>Explore</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
+                </Link>
               </motion.div>
             ))}
           </div>
 
-          {/* Quick Stats */}
+          {/* Gentle Encouragement */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mt-8 bg-card rounded-2xl border border-border p-6"
+            transition={{ delay: 0.4 }}
+            className="mt-12 text-center max-w-md mx-auto"
           >
-            <h2 className="text-lg font-semibold mb-4">Your Progress Overview</h2>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-primary">
-                  {(progress?.personal_goals?.length || 0) +
-                    (progress?.professional_goals?.length || 0) +
-                    (progress?.fitness_goals?.length || 0)}
-                </p>
-                <p className="text-sm text-muted-foreground">Total Goals</p>
-              </div>
-              <div className="text-center">
-                <p className="text-3xl font-bold text-emerald-500">0</p>
-                <p className="text-sm text-muted-foreground">Completed</p>
-              </div>
-              <div className="text-center">
-                <p className="text-3xl font-bold text-amber-500">0%</p>
-                <p className="text-sm text-muted-foreground">Progress</p>
-              </div>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm">
+              <Sparkles className="w-4 h-4" />
+              <span>Small steps lead to big changes</span>
             </div>
           </motion.div>
         </main>
@@ -187,5 +188,12 @@ const Dashboard = () => {
     </>
   );
 };
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
 
 export default Dashboard;
