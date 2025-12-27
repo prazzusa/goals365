@@ -27,7 +27,7 @@ const features = [
 
 const FeatureCards = () => {
   return (
-    <section className="relative z-10 -mt-20 pb-20">
+    <section className="relative z-10 py-20">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {features.map((feature, index) => (
