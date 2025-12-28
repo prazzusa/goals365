@@ -13,6 +13,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Goals from "./pages/Goals";
+import AddFitnessGoals from "./pages/AddFitnessGoals";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/goals" element={<Goals />} />
               <Route path="/goals/:category" element={<Goals />} />
+              <Route path="/addgoals/fitness" element={<AddFitnessGoals />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
