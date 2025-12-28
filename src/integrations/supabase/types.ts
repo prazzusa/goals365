@@ -14,6 +14,100 @@ export type Database = {
   }
   public: {
     Tables: {
+      daily_goals: {
+        Row: {
+          category: string
+          completed: boolean
+          created_at: string
+          date: string
+          id: string
+          notes: string | null
+          progress: number
+          title: string
+          updated_at: string
+          user_id: string
+          weekly_goal_id: string | null
+        }
+        Insert: {
+          category: string
+          completed?: boolean
+          created_at?: string
+          date: string
+          id?: string
+          notes?: string | null
+          progress?: number
+          title: string
+          updated_at?: string
+          user_id: string
+          weekly_goal_id?: string | null
+        }
+        Update: {
+          category?: string
+          completed?: boolean
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string | null
+          progress?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+          weekly_goal_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_goals_weekly_goal_id_fkey"
+            columns: ["weekly_goal_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monthly_goals: {
+        Row: {
+          completed: boolean
+          created_at: string
+          id: string
+          month: number
+          title: string
+          updated_at: string
+          user_id: string
+          year: number
+          yearly_goal_id: string | null
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          id?: string
+          month: number
+          title: string
+          updated_at?: string
+          user_id: string
+          year: number
+          yearly_goal_id?: string | null
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          id?: string
+          month?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+          year?: number
+          yearly_goal_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_goals_yearly_goal_id_fkey"
+            columns: ["yearly_goal_id"]
+            isOneToOne: false
+            referencedRelation: "yearly_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       onboarding_progress: {
         Row: {
           completed_at: string | null
@@ -78,6 +172,80 @@ export type Database = {
           full_name?: string | null
           id?: string
           onboarding_completed?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_goals: {
+        Row: {
+          completed: boolean
+          created_at: string
+          id: string
+          monthly_goal_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          id?: string
+          monthly_goal_id?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          id?: string
+          monthly_goal_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_goals_monthly_goal_id_fkey"
+            columns: ["monthly_goal_id"]
+            isOneToOne: false
+            referencedRelation: "monthly_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      yearly_goals: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          position: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          position?: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          position?: number
+          title?: string
           updated_at?: string
           user_id?: string
         }
