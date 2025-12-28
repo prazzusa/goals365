@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
-import { Heart, LogOut, ArrowLeft, ArrowRight, ChevronRight } from "lucide-react";
+import { Heart, LogOut, ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGoals } from "@/hooks/useGoals";
@@ -10,21 +10,24 @@ import { format, startOfWeek } from "date-fns";
 import YearlyGoalsStep from "@/components/goals/YearlyGoalsStep";
 import MonthlyGoalsStep from "@/components/goals/MonthlyGoalsStep";
 import WeeklyGoalsStep from "@/components/goals/WeeklyGoalsStep";
-import DailyCheckIn from "@/components/goals/DailyCheckIn";
-import ProgressTracker from "@/components/goals/ProgressTracker";
+import DailyDashboard from "@/components/goals/DailyDashboard";
 
 type GoalCategory = "personal" | "professional" | "fitness";
 
-const stepLabels = ["Yearly Goals", "Monthly Focus", "Weekly Actions", "Daily Check-In", "Track Progress"];
+const stepLabels = ["Yearly Goals", "Monthly Focus", "Weekly Actions"];
 
 const Goals = () => {
   const { category } = useParams<{ category: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();
   const goals = useGoals();
 
   const validCategory = (category && ["personal", "professional", "fitness"].includes(category) 
     ? category : "personal") as GoalCategory;
+
+  // Check if user wants to see daily dashboard (after completing setup)
+  const showDashboard = searchParams.get("dashboard") === "true";
 
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -36,6 +39,11 @@ const Goals = () => {
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
   }, [user, authLoading, navigate]);
+
+  // Check if user has completed all setup steps for at least one category
+  const hasCompletedAnySetup = useMemo(() => {
+    return goals.yearlyGoals.length > 0 && goals.weeklyGoals.length > 0;
+  }, [goals.yearlyGoals, goals.weeklyGoals]);
 
   // Get category-specific data
   const yearlyGoalsForCategory = goals.getYearlyGoalsByCategory(validCategory);
@@ -51,12 +59,14 @@ const Goals = () => {
       g.week_start === currentWeekStart
     ), [goals.weeklyGoals, monthlyGoalsForCategory, currentWeekStart]);
 
-  const dailyGoalsForCategory = goals.getDailyGoalsByCategory(validCategory, selectedDate);
-
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
   };
+
+  // Get user's first name from profile or email
+  const userName = user?.user_metadata?.full_name?.split(' ')[0] || 
+                   user?.email?.split('@')[0] || undefined;
 
   if (authLoading || goals.loading) {
     return (
@@ -66,8 +76,36 @@ const Goals = () => {
     );
   }
 
-  const canGoNext = currentStep < 4;
+  // Show daily dashboard if user has completed setup and requested dashboard view
+  if (showDashboard || (hasCompletedAnySetup && !category)) {
+    return (
+      <>
+        <Helmet>
+          <title>Daily Goals - GoalSync</title>
+        </Helmet>
+        <DailyDashboard
+          userName={userName}
+          yearlyGoals={goals.yearlyGoals}
+          monthlyGoals={goals.monthlyGoals}
+          weeklyGoals={goals.weeklyGoals}
+          dailyGoals={goals.dailyGoals}
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+          onAddDailyGoal={(cat, title) => goals.addDailyGoal(null, cat, title, selectedDate)}
+          onUpdateDailyGoal={(id, updates) => goals.updateDailyGoal(id, updates)}
+          onRemoveDailyGoal={(id) => goals.deleteDailyGoal(id)}
+          onSignOut={handleSignOut}
+        />
+      </>
+    );
+  }
+
+  const canGoNext = currentStep < 2;
   const canGoPrev = currentStep > 0;
+
+  const handleFinishSetup = () => {
+    navigate("/goals?dashboard=true");
+  };
 
   return (
     <>
@@ -149,24 +187,6 @@ const Goals = () => {
                 onRemoveGoal={(id) => goals.deleteWeeklyGoal(id)}
               />
             )}
-            {currentStep === 3 && (
-              <DailyCheckIn
-                category={validCategory}
-                dailyGoals={dailyGoalsForCategory}
-                selectedDate={selectedDate}
-                onDateChange={setSelectedDate}
-                onAddGoal={(title) => goals.addDailyGoal(null, validCategory, title, selectedDate)}
-                onToggleComplete={(id) => {
-                  const goal = dailyGoalsForCategory.find(g => g.id === id);
-                  if (goal) goals.updateDailyGoal(id, { completed: !goal.completed, progress: goal.completed ? 0 : 5 });
-                }}
-                onUpdateProgress={(id, progress) => goals.updateDailyGoal(id, { progress, completed: progress === 5 })}
-                onRemoveGoal={(id) => goals.deleteDailyGoal(id)}
-              />
-            )}
-            {currentStep === 4 && (
-              <ProgressTracker category={validCategory} dailyGoals={goals.dailyGoals} />
-            )}
           </motion.div>
 
           {/* Navigation */}
@@ -179,6 +199,11 @@ const Goals = () => {
             {canGoNext && (
               <Button onClick={() => setCurrentStep(s => s + 1)} className="rounded-xl gap-2">
                 Next<ArrowRight className="w-4 h-4" />
+              </Button>
+            )}
+            {currentStep === 2 && weeklyGoalsForCategory.length > 0 && (
+              <Button onClick={handleFinishSetup} className="rounded-xl gap-2 bg-emerald-600 hover:bg-emerald-700">
+                Continue to Daily Dashboard
               </Button>
             )}
           </div>

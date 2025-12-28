@@ -33,6 +33,7 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/goals" element={<Goals />} />
               <Route path="/goals/:category" element={<Goals />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

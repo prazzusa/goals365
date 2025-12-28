@@ -122,7 +122,7 @@ const Dashboard = () => {
             </p>
             
             {/* Track Goals Button */}
-            <Link to="/goals/personal?step=progress">
+            <Link to="/goals?dashboard=true">
               <Button
                 size="lg"
                 className="rounded-xl gap-2 bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all"
