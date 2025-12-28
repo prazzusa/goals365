@@ -1,1 +1,7 @@
 project_id = "zicilzawudwaemrlpeoz"
+
+[functions.send-password-reset]
+verify_jwt = false
+
+[functions.classify-exercise]
+verify_jwt = false
