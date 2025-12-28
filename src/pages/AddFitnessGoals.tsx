@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, 
@@ -14,7 +14,8 @@ import {
   Calendar,
   Loader2,
   Timer,
-  Flame
+  Flame,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,8 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 type ExerciseType = "strength" | "cardio" | "flexibility";
@@ -160,6 +163,7 @@ const foodDatabase = [
 
 const AddFitnessGoals = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [foods, setFoods] = useState<FoodItem[]>([]);
@@ -169,6 +173,64 @@ const AddFitnessGoals = () => {
   const [isClassifying, setIsClassifying] = useState(false);
   const [pendingExercise, setPendingExercise] = useState<PendingExercise | null>(null);
   const [showExerciseSuggestions, setShowExerciseSuggestions] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Load existing logs for selected date
+  const loadLogsForDate = useCallback(async (date: Date) => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    const dateStr = format(date, "yyyy-MM-dd");
+    
+    try {
+      const [exercisesRes, foodsRes] = await Promise.all([
+        supabase
+          .from("exercise_logs")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("date", dateStr),
+        supabase
+          .from("food_logs")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("date", dateStr)
+      ]);
+
+      if (exercisesRes.error) throw exercisesRes.error;
+      if (foodsRes.error) throw foodsRes.error;
+
+      setExercises(
+        (exercisesRes.data || []).map((e) => ({
+          id: e.id,
+          name: e.exercise_name,
+          type: e.exercise_type as ExerciseType,
+          sets: e.sets || undefined,
+          reps: e.reps || undefined,
+          duration: e.duration || undefined,
+          caloriesBurned: e.calories_burned || undefined,
+        }))
+      );
+
+      setFoods(
+        (foodsRes.data || []).map((f) => ({
+          id: f.id,
+          name: f.food_name,
+          calories: f.calories || undefined,
+          mealType: f.meal_category as MealType,
+        }))
+      );
+    } catch (error) {
+      console.error("Failed to load logs:", error);
+      toast.error("Failed to load fitness logs");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadLogsForDate(selectedDate);
+  }, [selectedDate, loadLogsForDate]);
 
   // Filter exercises for autocomplete
   const filteredExercises = useMemo(() => {
@@ -233,41 +295,117 @@ const AddFitnessGoals = () => {
     classifyExercise(name.trim());
   };
 
-  const confirmExercise = () => {
-    if (!pendingExercise) return;
+  const confirmExercise = async () => {
+    if (!pendingExercise || !user) return;
     
-    const newExercise: Exercise = {
-      id: Date.now().toString(),
-      name: pendingExercise.name,
-      type: pendingExercise.classification.type,
-      sets: pendingExercise.sets,
-      reps: pendingExercise.reps,
-      duration: pendingExercise.duration,
-      caloriesBurned: pendingExercise.caloriesBurned,
-    };
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
     
-    setExercises([...exercises, newExercise]);
-    setPendingExercise(null);
+    try {
+      const { data, error } = await supabase
+        .from("exercise_logs")
+        .insert({
+          user_id: user.id,
+          date: dateStr,
+          exercise_name: pendingExercise.name,
+          exercise_type: pendingExercise.classification.type,
+          sets: pendingExercise.sets,
+          reps: pendingExercise.reps,
+          duration: pendingExercise.duration,
+          calories_burned: pendingExercise.caloriesBurned,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newExercise: Exercise = {
+        id: data.id,
+        name: data.exercise_name,
+        type: data.exercise_type as ExerciseType,
+        sets: data.sets || undefined,
+        reps: data.reps || undefined,
+        duration: data.duration || undefined,
+        caloriesBurned: data.calories_burned || undefined,
+      };
+      
+      setExercises([...exercises, newExercise]);
+      setPendingExercise(null);
+      toast.success("Exercise added");
+    } catch (error) {
+      console.error("Failed to save exercise:", error);
+      toast.error("Failed to save exercise");
+    }
   };
 
-  const removeExercise = (id: string) => {
-    setExercises(exercises.filter(e => e.id !== id));
+  const removeExercise = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("exercise_logs")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setExercises(exercises.filter(e => e.id !== id));
+      toast.success("Exercise removed");
+    } catch (error) {
+      console.error("Failed to delete exercise:", error);
+      toast.error("Failed to remove exercise");
+    }
   };
 
-  const addFood = (name: string, mealType: MealType, calories?: number) => {
-    const newFood: FoodItem = {
-      id: Date.now().toString(),
-      name,
-      calories,
-      mealType,
-    };
-    setFoods([...foods, newFood]);
-    setFoodSearch("");
-    setActiveMeal(null);
+  const addFood = async (name: string, mealType: MealType, calories?: number) => {
+    if (!user) return;
+    
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    
+    try {
+      const { data, error } = await supabase
+        .from("food_logs")
+        .insert({
+          user_id: user.id,
+          date: dateStr,
+          food_name: name,
+          meal_category: mealType,
+          calories: calories || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newFood: FoodItem = {
+        id: data.id,
+        name: data.food_name,
+        calories: data.calories || undefined,
+        mealType: data.meal_category as MealType,
+      };
+      
+      setFoods([...foods, newFood]);
+      setFoodSearch("");
+      setActiveMeal(null);
+      toast.success("Food added");
+    } catch (error) {
+      console.error("Failed to save food:", error);
+      toast.error("Failed to save food");
+    }
   };
 
-  const removeFood = (id: string) => {
-    setFoods(foods.filter(f => f.id !== id));
+  const removeFood = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("food_logs")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setFoods(foods.filter(f => f.id !== id));
+      toast.success("Food removed");
+    } catch (error) {
+      console.error("Failed to delete food:", error);
+      toast.error("Failed to remove food");
+    }
   };
 
   const getFoodsForMeal = (mealType: MealType) => {
@@ -305,7 +443,12 @@ const AddFitnessGoals = () => {
         </div>
       </div>
 
-      <div className="px-4 py-6 space-y-6 pb-24 max-w-lg mx-auto">
+      <div className="px-4 py-6 space-y-6 pb-24 max-w-lg mx-auto relative">
+        {isLoading && (
+          <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        )}
         {/* Date Picker */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
@@ -568,9 +711,9 @@ const AddFitnessGoals = () => {
                       </div>
                       <button
                         onClick={() => removeExercise(exercise.id)}
-                        className="p-1.5 hover:bg-white/50 rounded-lg transition-colors"
+                        className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors"
                       >
-                        <X className="w-4 h-4 text-muted-foreground" />
+                        <Trash2 className="w-4 h-4 text-destructive" />
                       </button>
                     </motion.div>
                   );
@@ -646,9 +789,9 @@ const AddFitnessGoals = () => {
                             )}
                             <button
                               onClick={() => removeFood(food.id)}
-                              className="p-1 hover:bg-muted rounded transition-colors"
+                              className="p-1 hover:bg-destructive/10 rounded transition-colors"
                             >
-                              <X className="w-3 h-3 text-muted-foreground" />
+                              <Trash2 className="w-3 h-3 text-destructive" />
                             </button>
                           </div>
                         ))}

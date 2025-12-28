@@ -64,6 +64,81 @@ export type Database = {
           },
         ]
       }
+      exercise_logs: {
+        Row: {
+          calories_burned: number | null
+          created_at: string
+          date: string
+          duration: number | null
+          exercise_name: string
+          exercise_type: string
+          id: string
+          reps: number | null
+          sets: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calories_burned?: number | null
+          created_at?: string
+          date: string
+          duration?: number | null
+          exercise_name: string
+          exercise_type: string
+          id?: string
+          reps?: number | null
+          sets?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calories_burned?: number | null
+          created_at?: string
+          date?: string
+          duration?: number | null
+          exercise_name?: string
+          exercise_type?: string
+          id?: string
+          reps?: number | null
+          sets?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      food_logs: {
+        Row: {
+          calories: number | null
+          created_at: string
+          date: string
+          food_name: string
+          id: string
+          meal_category: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calories?: number | null
+          created_at?: string
+          date: string
+          food_name: string
+          id?: string
+          meal_category: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calories?: number | null
+          created_at?: string
+          date?: string
+          food_name?: string
+          id?: string
+          meal_category?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       monthly_goals: {
         Row: {
           completed: boolean
