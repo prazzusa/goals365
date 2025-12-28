@@ -14,6 +14,8 @@ import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Goals from "./pages/Goals";
 import AddFitnessGoals from "./pages/AddFitnessGoals";
+import AddPersonalGoals from "./pages/AddPersonalGoals";
+import AddProfessionalGoals from "./pages/AddProfessionalGoals";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +39,8 @@ const App = () => (
               <Route path="/goals" element={<Goals />} />
               <Route path="/goals/:category" element={<Goals />} />
               <Route path="/addgoals/fitness" element={<AddFitnessGoals />} />
+              <Route path="/addgoals/personal" element={<AddPersonalGoals />} />
+              <Route path="/addgoals/professional" element={<AddProfessionalGoals />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
