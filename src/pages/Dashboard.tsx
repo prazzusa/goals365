@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
-import { Heart, LogOut, Target, Briefcase, Dumbbell, ArrowRight, Sparkles } from "lucide-react";
+import { Heart, LogOut, Target, Briefcase, Dumbbell, ArrowRight, Sparkles, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOnboarding } from "@/hooks/useOnboarding";
@@ -117,9 +117,20 @@ const Dashboard = () => {
             <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">
               {greeting}{firstName ? `, ${firstName}` : ""}
             </h1>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-muted-foreground text-lg mb-6">
               What would you like to focus on today?
             </p>
+            
+            {/* Track Goals Button */}
+            <Link to="/goals/personal?step=progress">
+              <Button
+                size="lg"
+                className="rounded-xl gap-2 bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all"
+              >
+                <BarChart3 className="w-5 h-5" />
+                Track Progress
+              </Button>
+            </Link>
           </motion.div>
 
           {/* Goal Categories */}
