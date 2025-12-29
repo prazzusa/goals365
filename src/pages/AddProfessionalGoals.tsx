@@ -445,6 +445,16 @@ const AddProfessionalGoals = () => {
           />
         )}
       </div>
+
+      {/* Save & Continue Button */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border">
+        <Button
+          onClick={() => navigate("/goals?dashboard=true")}
+          className="w-full h-14 rounded-2xl text-lg font-semibold max-w-lg mx-auto block"
+        >
+          Save & Continue
+        </Button>
+      </div>
     </div>
   );
 };
