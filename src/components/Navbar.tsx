@@ -1,8 +1,11 @@
 import { Link } from "react-router-dom";
-import { Heart, Sparkles } from "lucide-react";
+import { Heart, Sparkles, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
+  const { user } = useAuth();
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -25,25 +28,42 @@ const Navbar = () => {
             >
               Pricing
             </Link>
-            <Link
-              to="/auth"
-              className="text-muted-foreground hover:text-foreground transition-colors font-medium"
-            >
-              Sign In
-            </Link>
-            <Button asChild className="gap-2 rounded-full px-5">
-              <Link to="/auth?mode=signup">
-                <Sparkles className="w-4 h-4" />
-                Get Started
-              </Link>
-            </Button>
+            {user ? (
+              <Button asChild className="gap-2 rounded-full px-5">
+                <Link to="/dashboard">
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Link
+                  to="/auth"
+                  className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+                >
+                  Sign In
+                </Link>
+                <Button asChild className="gap-2 rounded-full px-5">
+                  <Link to="/auth?mode=signup">
+                    <Sparkles className="w-4 h-4" />
+                    Get Started
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}
           <div className="md:hidden">
-            <Button asChild size="sm" className="rounded-full">
-              <Link to="/auth?mode=signup">Get Started</Link>
-            </Button>
+            {user ? (
+              <Button asChild size="sm" className="rounded-full">
+                <Link to="/dashboard">Dashboard</Link>
+              </Button>
+            ) : (
+              <Button asChild size="sm" className="rounded-full">
+                <Link to="/auth?mode=signup">Get Started</Link>
+              </Button>
+            )}
           </div>
         </div>
       </div>
