@@ -1,12 +1,16 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, startOfWeek, addDays, subDays, isToday } from "date-fns";
-import { Plus, Check, ChevronLeft, ChevronRight, Edit2, Sparkles, Mic } from "lucide-react";
+import { Plus, Check, ChevronLeft, ChevronRight, Edit2, Sparkles, Mic, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useNavigate } from "react-router-dom";
 import VoiceInput from "@/components/VoiceInput";
+import { MomentumScore } from "@/components/dashboard/MomentumScore";
+import { useMomentum } from "@/hooks/useMomentum";
 import type { YearlyGoal, MonthlyGoal, WeeklyGoal, DailyGoal } from "@/hooks/useGoals";
 
 type GoalCategory = "personal" | "professional" | "fitness";
@@ -52,17 +56,19 @@ const categoryConfig = {
   },
 };
 
-// Circular Progress Component
+// Circular Progress Component with enhanced animations
 const CircularProgress = ({ 
   percentage, 
   label, 
   color,
-  size = 100 
+  size = 100,
+  delay = 0
 }: { 
   percentage: number; 
   label: string; 
   color: string;
   size?: number;
+  delay?: number;
 }) => {
   const strokeWidth = 8;
   const radius = (size - strokeWidth) / 2;
@@ -70,7 +76,12 @@ const CircularProgress = ({
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <motion.div 
+      className="flex flex-col items-center gap-2"
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay, duration: 0.4, ease: "easeOut" }}
+    >
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="-rotate-90">
           <circle
@@ -92,29 +103,50 @@ const CircularProgress = ({
             strokeDasharray={circumference}
             initial={{ strokeDashoffset: circumference }}
             animate={{ strokeDashoffset }}
-            transition={{ duration: 1, ease: "easeOut" }}
+            transition={{ duration: 1.2, delay: delay + 0.2, ease: "easeOut" }}
           />
         </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xl font-bold text-foreground">{percentage}%</span>
-        </div>
+        <motion.div 
+          className="absolute inset-0 flex items-center justify-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: delay + 0.5 }}
+        >
+          <motion.span 
+            className="text-xl font-bold text-foreground"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: delay + 0.6, type: "spring", stiffness: 200 }}
+          >
+            {percentage}%
+          </motion.span>
+        </motion.div>
       </div>
-      <span className="text-xs text-muted-foreground font-medium">{label}</span>
-    </div>
+      <motion.span 
+        className="text-xs text-muted-foreground font-medium"
+        initial={{ opacity: 0, y: 5 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: delay + 0.3 }}
+      >
+        {label}
+      </motion.span>
+    </motion.div>
   );
 };
 
-// Goal Category Card Component
+// Goal Category Card Component with enhanced animations
 const GoalCategoryCard = ({
   category,
   goals,
   weeklyGoals,
   onEdit,
+  index = 0,
 }: {
   category: GoalCategory;
   goals: DailyGoal[];
   weeklyGoals: WeeklyGoal[];
   onEdit: () => void;
+  index?: number;
 }) => {
   const config = categoryConfig[category];
   const completedSteps = goals.filter(g => g.completed).length;
@@ -126,22 +158,38 @@ const GoalCategoryCard = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`${config.bgColor} ${config.borderColor} border rounded-2xl p-4 relative`}
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.1, duration: 0.4 }}
+      whileHover={{ scale: 1.02, y: -2 }}
+      className={`${config.bgColor} ${config.borderColor} border rounded-2xl p-4 relative cursor-pointer transition-shadow hover:shadow-lg`}
     >
       <div className="flex items-start justify-between mb-3">
-        <h3 className="font-semibold text-foreground">{config.label}</h3>
-        <button 
+        <motion.h3 
+          className="font-semibold text-foreground"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: index * 0.1 + 0.1 }}
+        >
+          {config.label}
+        </motion.h3>
+        <motion.button 
           onClick={onEdit}
           className="text-primary text-sm font-medium hover:underline"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
           Edit
-        </button>
+        </motion.button>
       </div>
       
       {displayGoal ? (
-        <div className="space-y-2">
+        <motion.div 
+          className="space-y-2"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.1 + 0.2 }}
+        >
           <p className="text-sm text-foreground font-medium">
             {displayGoal.title}
           </p>
@@ -153,12 +201,19 @@ const GoalCategoryCard = ({
               className={`h-full ${config.progressFill} rounded-full`}
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.8, delay: index * 0.1 + 0.3 }}
             />
           </div>
-        </div>
+        </motion.div>
       ) : (
-        <p className="text-sm text-muted-foreground italic">No goals set yet</p>
+        <motion.p 
+          className="text-sm text-muted-foreground italic"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: index * 0.1 + 0.2 }}
+        >
+          No goals set yet
+        </motion.p>
       )}
     </motion.div>
   );
@@ -469,6 +524,8 @@ const DailyDashboard = ({
 }: DailyDashboardProps) => {
   const navigate = useNavigate();
   const [todayProgress, setTodayProgress] = useState(3);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const { momentum, loading: momentumLoading } = useMomentum();
 
   // Calculate progress percentages
   const calculateProgress = (goals: { completed?: boolean }[]) => {
@@ -516,65 +573,147 @@ const DailyDashboard = ({
     onDateChange(format(addDays(date, 1), "yyyy-MM-dd"));
   };
 
+  const handleCalendarSelect = (date: Date | undefined) => {
+    if (date) {
+      onDateChange(format(date, "yyyy-MM-dd"));
+      setCalendarOpen(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-secondary/30 to-background pb-8">
       {/* Header */}
-      <header className="bg-card/80 backdrop-blur-sm sticky top-0 z-10 border-b border-border">
+      <motion.header 
+        className="bg-card/80 backdrop-blur-sm sticky top-0 z-10 border-b border-border"
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4 }}
+      >
         <div className="px-4 py-4 flex items-center justify-between max-w-lg mx-auto">
-          <div>
+          <motion.div
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+          >
             <h1 className="text-xl font-display font-bold">
               Welcome back{userName ? `, ${userName}` : ""}!
             </h1>
             <p className="text-sm text-muted-foreground">Here's your progress so far.</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={onSignOut} className="rounded-xl">
-            Sign Out
-          </Button>
+          </motion.div>
+          <motion.div
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Button variant="outline" size="sm" onClick={onSignOut} className="rounded-xl">
+              Sign Out
+            </Button>
+          </motion.div>
         </div>
-      </header>
+      </motion.header>
 
       <div className="px-4 max-w-lg mx-auto space-y-6 mt-6">
+        {/* Momentum Score */}
+        {!momentumLoading && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <MomentumScore
+              score={momentum.score}
+              level={momentum.level}
+              streakDays={momentum.streakDays}
+              weeklyChange={momentum.weeklyChange}
+            />
+          </motion.div>
+        )}
+
         {/* Progress Circles */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-card border border-border rounded-3xl p-6"
+          transition={{ delay: 0.2 }}
+          className="bg-card border border-border rounded-3xl p-6 shadow-lg"
         >
           <div className="flex justify-around items-center">
             <CircularProgress 
               percentage={yearlyProgress} 
               label="Yearly Goals" 
               color="hsl(217 91% 60%)"
+              delay={0.3}
             />
             <CircularProgress 
               percentage={monthlyProgress} 
               label="Monthly Goals" 
               color="hsl(25 95% 65%)"
+              delay={0.4}
             />
             <CircularProgress 
               percentage={weeklyProgress} 
               label="Weekly Goals" 
               color="hsl(150 60% 45%)"
+              delay={0.5}
             />
           </div>
-          <p className="text-center text-sm text-muted-foreground mt-4 flex items-center justify-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
+          <motion.p 
+            className="text-center text-sm text-muted-foreground mt-4 flex items-center justify-center gap-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+          >
+            <motion.span
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 0.5, delay: 1, repeat: Infinity, repeatDelay: 3 }}
+            >
+              <Sparkles className="w-4 h-4 text-primary" />
+            </motion.span>
             Every step counts on your journey.
-          </p>
+          </motion.p>
         </motion.div>
 
-        {/* Date Navigation */}
-        <div className="flex items-center justify-center gap-4">
-          <Button variant="ghost" size="icon" onClick={goToPrevDay} className="rounded-xl">
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          <span className="font-medium text-foreground">
-            {isToday(new Date(selectedDate)) ? "Today" : format(new Date(selectedDate), "MMM d, yyyy")}
-          </span>
-          <Button variant="ghost" size="icon" onClick={goToNextDay} className="rounded-xl">
-            <ChevronRight className="w-5 h-5" />
-          </Button>
-        </div>
+        {/* Date Navigation with Calendar Popover */}
+        <motion.div 
+          className="flex items-center justify-center gap-4"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+            <Button variant="ghost" size="icon" onClick={goToPrevDay} className="rounded-xl">
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+          </motion.div>
+          
+          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <PopoverTrigger asChild>
+              <motion.button
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border hover:bg-muted transition-colors"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                <span className="font-medium text-foreground">
+                  {isToday(new Date(selectedDate)) ? "Today" : format(new Date(selectedDate), "MMM d, yyyy")}
+                </span>
+              </motion.button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="center">
+              <Calendar
+                mode="single"
+                selected={new Date(selectedDate)}
+                onSelect={handleCalendarSelect}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+
+          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+            <Button variant="ghost" size="icon" onClick={goToNextDay} className="rounded-xl">
+              <ChevronRight className="w-5 h-5" />
+            </Button>
+          </motion.div>
+        </motion.div>
 
         {/* Goal Category Cards */}
         <div className="space-y-3">
@@ -583,18 +722,21 @@ const DailyDashboard = ({
             goals={personalGoals}
             weeklyGoals={personalWeeklyGoals}
             onEdit={() => navigate("/goals/personal")}
+            index={0}
           />
           <GoalCategoryCard
             category="professional"
             goals={professionalGoals}
             weeklyGoals={professionalWeeklyGoals}
             onEdit={() => navigate("/goals/professional")}
+            index={1}
           />
           <GoalCategoryCard
             category="fitness"
             goals={fitnessGoals}
             weeklyGoals={fitnessWeeklyGoals}
             onEdit={() => navigate("/goals/fitness")}
+            index={2}
           />
         </div>
 
