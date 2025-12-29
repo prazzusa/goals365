@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { usePremium } from "@/hooks/usePremium";
+import { useMomentum } from "@/hooks/useMomentum";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MomentumScore } from "@/components/dashboard/MomentumScore";
@@ -24,8 +25,8 @@ const Dashboard = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const { progress, loading: onboardingLoading, isCompleted } = useOnboarding();
   const { isPremium, limits, loading: premiumLoading } = usePremium();
+  const { momentum, loading: momentumLoading, refresh: refreshMomentum } = useMomentum();
   const [dailyGoals, setDailyGoals] = useState<any[]>([]);
-  const [momentumData, setMomentumData] = useState({ score: 150, level: "seed" as const, streak: 3 });
   const [showCategoryUpsell, setShowCategoryUpsell] = useState(false);
 
   useEffect(() => {
@@ -60,6 +61,8 @@ const Dashboard = () => {
   const toggleGoalComplete = async (goalId: string, completed: boolean) => {
     await supabase.from("daily_goals").update({ completed: !completed }).eq("id", goalId);
     fetchTodaysGoals();
+    // Refresh momentum after goal completion
+    refreshMomentum();
   };
 
   if (authLoading || onboardingLoading || premiumLoading) {
@@ -140,21 +143,25 @@ const Dashboard = () => {
 
         {/* Content */}
         <main className="p-4 pb-24 space-y-6 max-w-lg mx-auto">
-          {/* Momentum Score */}
           {/* Momentum Score - Full version for premium, limited for free */}
           <FeatureGate
             feature="hasFullMomentumScore"
             context="analytics"
             fallback={
               <MomentumScore 
-                score={momentumData.score} 
-                level={momentumData.level} 
-                streakDays={momentumData.streak} 
+                score={momentum.score} 
+                level={momentum.level} 
+                streakDays={momentum.streakDays} 
                 compact={true}
               />
             }
           >
-            <MomentumScore score={momentumData.score} level={momentumData.level} streakDays={momentumData.streak} weeklyChange={12} />
+            <MomentumScore 
+              score={momentum.score} 
+              level={momentum.level} 
+              streakDays={momentum.streakDays} 
+              weeklyChange={momentum.weeklyChange} 
+            />
           </FeatureGate>
 
           {/* Daily Insight */}
