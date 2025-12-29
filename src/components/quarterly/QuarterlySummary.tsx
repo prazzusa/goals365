@@ -15,6 +15,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+import { useNavigate } from "react-router-dom";
+
 interface QuarterlySummaryProps {
   planningState: QuarterlyPlanningState;
   onBack: () => void;
@@ -53,6 +55,7 @@ const QuarterlySummary = ({
   onComplete,
 }: QuarterlySummaryProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeMonth, setActiveMonth] = useState(months[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -227,7 +230,7 @@ const QuarterlySummary = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="mt-8 pb-8"
+          className="mt-8 pb-8 space-y-3"
         >
           <Button
             onClick={handleAutoSplit}
@@ -238,8 +241,16 @@ const QuarterlySummary = ({
             <Sparkles className="w-5 h-5 mr-2" />
             {isSubmitting ? "Saving..." : "Auto Split Into Months"}
           </Button>
+          <Button
+            onClick={() => navigate("/monthly")}
+            variant="outline"
+            size="lg"
+            className="w-full h-14 text-lg font-semibold rounded-xl"
+          >
+            Refine into Monthly Focus
+          </Button>
           <p className="text-center text-sm text-muted-foreground mt-3">
-            We'll help break down your goals into monthly milestones
+            Break down your quarterly vision into actionable monthly goals
           </p>
         </motion.div>
       </div>

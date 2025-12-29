@@ -17,6 +17,10 @@ import AddFitnessGoals from "./pages/AddFitnessGoals";
 import AddPersonalGoals from "./pages/AddPersonalGoals";
 import AddProfessionalGoals from "./pages/AddProfessionalGoals";
 import QuarterlyPlanning from "./pages/QuarterlyPlanning";
+import MonthlyPlanning from "./pages/MonthlyPlanning";
+import WeeklyPlanning from "./pages/WeeklyPlanning";
+import WeeklyReview from "./pages/WeeklyReview";
+import ProgressInsights from "./pages/ProgressInsights";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +41,10 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/planning" element={<QuarterlyPlanning />} />
+              <Route path="/monthly" element={<MonthlyPlanning />} />
+              <Route path="/weekly" element={<WeeklyPlanning />} />
+              <Route path="/review" element={<WeeklyReview />} />
+              <Route path="/insights" element={<ProgressInsights />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/goals" element={<Goals />} />
               <Route path="/goals/:category" element={<Goals />} />
