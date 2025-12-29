@@ -176,6 +176,58 @@ const AddFitnessGoals = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Sync fitness activity to daily_goals for dashboard visibility
+  const syncFitnessToDailyGoals = useCallback(async () => {
+    if (!user) return;
+    
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    
+    try {
+      // Check if a fitness daily goal already exists for this date
+      const { data: existingGoal } = await supabase
+        .from("daily_goals")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("date", dateStr)
+        .eq("category", "fitness")
+        .maybeSingle();
+
+      const exerciseCount = exercises.length;
+      const mealCount = foods.length;
+      
+      if (exerciseCount > 0 || mealCount > 0) {
+        const goalTitle = `${exerciseCount} exercise${exerciseCount !== 1 ? 's' : ''}, ${mealCount} meal${mealCount !== 1 ? 's' : ''} logged`;
+        const progress = Math.min(5, Math.floor((exerciseCount + mealCount) / 2));
+        
+        if (existingGoal) {
+          // Update existing goal
+          await supabase
+            .from("daily_goals")
+            .update({ 
+              title: goalTitle,
+              progress,
+              completed: exerciseCount >= 1 && mealCount >= 1,
+            })
+            .eq("id", existingGoal.id);
+        } else {
+          // Create new fitness daily goal
+          await supabase
+            .from("daily_goals")
+            .insert({
+              user_id: user.id,
+              date: dateStr,
+              title: goalTitle,
+              category: "fitness",
+              progress,
+              completed: exerciseCount >= 1 && mealCount >= 1,
+            });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to sync fitness to daily goals:", error);
+    }
+  }, [user, selectedDate, exercises.length, foods.length]);
+
   // Load existing logs for selected date
   const loadLogsForDate = useCallback(async (date: Date) => {
     if (!user) return;
@@ -890,7 +942,10 @@ const AddFitnessGoals = () => {
       {/* Save Button */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border">
         <Button
-          onClick={() => navigate("/goals?dashboard=true")}
+          onClick={async () => {
+            await syncFitnessToDailyGoals();
+            navigate("/goals?dashboard=true");
+          }}
           className="w-full h-14 rounded-2xl text-lg font-semibold max-w-lg mx-auto block"
         >
           Save & Continue
