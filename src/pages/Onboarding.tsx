@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, ArrowRight, ArrowLeft, Sparkles, Zap, Clock, Target, Compass, Hammer, Scale } from "lucide-react";
+import { Heart, ArrowRight, ArrowLeft, Sparkles, Zap, Clock, Target, Compass, Hammer, Scale, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOnboarding } from "@/hooks/useOnboarding";
+import { usePremium } from "@/hooks/usePremium";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CategoryCard } from "@/components/onboarding/CategoryCard";
@@ -26,6 +27,7 @@ const Onboarding = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { progress, loading: onboardingLoading, updateProgress, completeOnboarding, isCompleted } = useOnboarding();
+  const { isPremium, limits } = usePremium();
   
   const [step, setStep] = useState(0);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -145,6 +147,16 @@ const Onboarding = () => {
                 <div className="text-center mb-8">
                   <h1 className="text-2xl font-display font-bold mb-2">What matters most to you?</h1>
                   <p className="text-muted-foreground">Select one or more areas to focus on</p>
+                  {!isPremium && selectedCategories.length >= limits.maxCategories && (
+                    <motion.p 
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-3 text-xs text-muted-foreground flex items-center justify-center gap-1.5"
+                    >
+                      <Info className="w-3 h-3" />
+                      Free plan supports {limits.maxCategories} category. Upgrade for more.
+                    </motion.p>
+                  )}
                 </div>
                 <div className="space-y-4">
                   <CategoryCard 
