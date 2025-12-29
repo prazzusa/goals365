@@ -44,11 +44,12 @@ const Onboarding = () => {
     if (isCompleted) navigate("/dashboard");
   }, [isCompleted, navigate]);
 
+  // Only restore step from progress on initial load, not on every update
   useEffect(() => {
-    if (progress) {
-      setStep(Math.min(progress.current_step - 1, 0));
+    if (progress && progress.current_step > 1) {
+      setStep(progress.current_step - 1);
     }
-  }, [progress]);
+  }, []);
 
   const toggleCategory = (cat: string) => {
     setSelectedCategories(prev => 
@@ -66,8 +67,10 @@ const Onboarding = () => {
 
   const handleNext = async () => {
     if (step < TOTAL_STEPS - 1) {
-      setStep(s => s + 1);
-      await updateProgress({ current_step: step + 2 });
+      const nextStep = step + 1;
+      setStep(nextStep);
+      // Update progress in background, don't await to avoid blocking UI
+      updateProgress({ current_step: nextStep + 1 }).catch(console.error);
     }
   };
 
