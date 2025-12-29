@@ -1,77 +1,117 @@
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
-import { Check, Star, Sparkles, Zap, Crown, ArrowRight } from "lucide-react";
+import { Check, X, Star, Sparkles, Crown, ArrowRight, Leaf, TrendingUp, Brain, BarChart3, Calendar, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePremium } from "@/hooks/usePremium";
 
 const plans = [
   {
-    name: "Free",
-    description: "Perfect for getting started",
+    name: "Momentum",
+    tagline: "Free",
+    description: "Build consistency and trust",
     price: "$0",
     period: "/forever",
-    icon: Sparkles,
+    icon: Leaf,
+    color: "bg-muted",
+    iconColor: "text-muted-foreground",
     features: [
-      "Up to 3 active goals",
-      "Basic progress tracking",
-      "Daily check-ins",
-      "Mobile app access",
-      "Community support",
+      { text: "1 goal category", included: true },
+      { text: "Daily tracking", included: true },
+      { text: "Basic streaks", included: true },
+      { text: "Manual goal setup", included: true },
+      { text: "14-day history", included: true },
+      { text: "Basic fitness logging", included: true },
+      { text: "AI personalization", included: false },
+      { text: "Advanced analytics", included: false },
+      { text: "Smart reminders", included: false },
+      { text: "Predictive insights", included: false },
     ],
-    buttonText: "Get Started",
+    buttonText: "Current Plan",
     buttonVariant: "outline" as const,
     popular: false,
+    isCurrent: true,
   },
   {
-    name: "Pro",
-    description: "Best for personal growth",
+    name: "Momentum+",
+    tagline: "Premium",
+    description: "Your personal growth system",
     price: "$9",
     period: "/per month",
-    icon: Zap,
+    icon: Crown,
+    color: "bg-primary",
+    iconColor: "text-primary-foreground",
     features: [
-      "Unlimited goals",
-      "Advanced analytics & insights",
-      "Goal categories (Health, Career, Life)",
-      "Habit streaks & reminders",
-      "Priority email support",
-      "Export your data",
-      "Dark mode",
+      { text: "Unlimited categories", included: true },
+      { text: "Daily tracking", included: true },
+      { text: "Advanced streaks", included: true },
+      { text: "AI-driven goal setup", included: true },
+      { text: "Full history (365+ days)", included: true },
+      { text: "Advanced fitness tracking", included: true },
+      { text: "AI personalization", included: true },
+      { text: "Full analytics & insights", included: true },
+      { text: "Smart reminders", included: true },
+      { text: "Predictive insights", included: true },
     ],
-    buttonText: "Start Free Trial",
+    buttonText: "Upgrade Now",
     buttonVariant: "default" as const,
     popular: true,
+    isCurrent: false,
+  },
+];
+
+const premiumBenefits = [
+  {
+    icon: TrendingUp,
+    title: "Unlimited Categories",
+    description: "Track personal, professional, and fitness goals all at once",
   },
   {
-    name: "Team",
-    description: "For teams & organizations",
-    price: "$29",
-    period: "/per user/month",
-    icon: Crown,
-    features: [
-      "Everything in Pro",
-      "Team goal sharing",
-      "Admin dashboard",
-      "Team analytics",
-      "SSO & advanced security",
-      "Dedicated account manager",
-      "Custom integrations",
-      "API access",
-    ],
-    buttonText: "Contact Sales",
-    buttonVariant: "outline" as const,
-    popular: false,
+    icon: Brain,
+    title: "AI Personalization",
+    description: "Get recommendations tailored to your unique journey",
+  },
+  {
+    icon: BarChart3,
+    title: "Full Analytics",
+    description: "Deep insights into your progress with long-term trends",
+  },
+  {
+    icon: Calendar,
+    title: "Smart Reminders",
+    description: "Intelligent notifications at the right time",
+  },
+  {
+    icon: Zap,
+    title: "Advanced Fitness",
+    description: "Track sets, reps, weight, cardio, and nutrition",
+  },
+  {
+    icon: Sparkles,
+    title: "Predictive Insights",
+    description: "Know what to focus on before you even ask",
   },
 ];
 
 const Pricing = () => {
+  const { user } = useAuth();
+  const { isPremium } = usePremium();
+
+  // Adjust current plan indicator based on actual status
+  const adjustedPlans = plans.map((plan) => ({
+    ...plan,
+    isCurrent: plan.name === "Momentum" ? !isPremium : isPremium,
+  }));
+
   return (
     <>
       <Helmet>
         <title>Pricing - GoalSync</title>
         <meta
           name="description"
-          content="Simple, transparent pricing. Start free and upgrade when you're ready. All plans include a 14-day free trial."
+          content="Simple pricing with two tiers. Start free with Momentum and upgrade to Momentum+ when you're ready for more."
         />
       </Helmet>
 
@@ -90,22 +130,22 @@ const Pricing = () => {
               <div className="inline-flex items-center gap-2 px-4 py-2 mb-6 bg-secondary rounded-full">
                 <Star className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium text-muted-foreground">
-                  Simple, transparent pricing
+                  Simple, honest pricing
                 </span>
               </div>
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold mb-4">
-                Choose your path to{" "}
-                <span className="gradient-text">success</span>
+                Two tiers.{" "}
+                <span className="gradient-text">One mission.</span>
               </h1>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Start free and upgrade when you're ready. All plans include a
-                14-day free trial with no credit card required.
+                Start free and build your momentum. Upgrade when you're ready
+                for the full experience.
               </p>
             </motion.div>
 
             {/* Pricing Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
-              {plans.map((plan, index) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-20">
+              {adjustedPlans.map((plan, index) => (
                 <motion.div
                   key={plan.name}
                   initial={{ opacity: 0, y: 30 }}
@@ -113,33 +153,50 @@ const Pricing = () => {
                   transition={{ delay: index * 0.1, duration: 0.5 }}
                   className={`relative rounded-3xl p-8 ${
                     plan.popular
-                      ? "bg-primary text-primary-foreground shadow-xl scale-105"
+                      ? "bg-primary text-primary-foreground shadow-xl ring-2 ring-primary/20"
                       : "bg-card border border-border shadow-card"
                   }`}
                 >
                   {plan.popular && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-brand-coral text-primary-foreground px-4 py-1 rounded-full text-sm font-medium">
-                      Most Popular
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-emotion-energy text-white px-4 py-1 rounded-full text-sm font-medium">
+                      Recommended
+                    </div>
+                  )}
+
+                  {plan.isCurrent && user && (
+                    <div className="absolute top-4 right-4 bg-background/20 backdrop-blur px-3 py-1 rounded-full text-xs font-medium">
+                      Current Plan
                     </div>
                   )}
 
                   <div
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${
+                    className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${
                       plan.popular
                         ? "bg-primary-foreground/20"
-                        : "bg-secondary"
+                        : plan.color
                     }`}
                   >
                     <plan.icon
-                      className={`w-6 h-6 ${
-                        plan.popular ? "text-primary-foreground" : "text-foreground"
+                      className={`w-7 h-7 ${
+                        plan.popular ? "text-primary-foreground" : plan.iconColor
                       }`}
                     />
                   </div>
 
-                  <h3 className="text-2xl font-display font-bold mb-1">
-                    {plan.name}
-                  </h3>
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <h3 className="text-2xl font-display font-bold">
+                      {plan.name}
+                    </h3>
+                    <span
+                      className={`text-sm px-2 py-0.5 rounded-full ${
+                        plan.popular
+                          ? "bg-primary-foreground/20 text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {plan.tagline}
+                    </span>
+                  </div>
                   <p
                     className={`text-sm mb-6 ${
                       plan.popular
@@ -151,7 +208,7 @@ const Pricing = () => {
                   </p>
 
                   <div className="mb-6">
-                    <span className="text-4xl font-display font-bold">
+                    <span className="text-5xl font-display font-bold">
                       {plan.price}
                     </span>
                     <span
@@ -167,22 +224,36 @@ const Pricing = () => {
 
                   <ul className="space-y-3 mb-8">
                     {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-3">
-                        <Check
-                          className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                            plan.popular
-                              ? "text-primary-foreground"
-                              : "text-primary"
-                          }`}
-                        />
+                      <li key={feature.text} className="flex items-start gap-3">
+                        {feature.included ? (
+                          <Check
+                            className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+                              plan.popular
+                                ? "text-primary-foreground"
+                                : "text-primary"
+                            }`}
+                          />
+                        ) : (
+                          <X
+                            className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+                              plan.popular
+                                ? "text-primary-foreground/40"
+                                : "text-muted-foreground/40"
+                            }`}
+                          />
+                        )}
                         <span
                           className={`text-sm ${
-                            plan.popular
-                              ? "text-primary-foreground/90"
-                              : "text-muted-foreground"
+                            feature.included
+                              ? plan.popular
+                                ? "text-primary-foreground/90"
+                                : "text-foreground"
+                              : plan.popular
+                              ? "text-primary-foreground/40"
+                              : "text-muted-foreground/40"
                           }`}
                         >
-                          {feature}
+                          {feature.text}
                         </span>
                       </li>
                     ))}
@@ -191,20 +262,59 @@ const Pricing = () => {
                   <Button
                     asChild
                     variant={plan.popular ? "secondary" : plan.buttonVariant}
-                    className={`w-full rounded-full gap-2 ${
+                    className={`w-full rounded-full gap-2 h-12 ${
                       plan.popular
                         ? "bg-primary-foreground text-primary hover:bg-primary-foreground/90"
                         : ""
                     }`}
+                    disabled={plan.isCurrent && user !== null}
                   >
-                    <Link to="/auth?mode=signup">
-                      {plan.buttonText}
-                      <ArrowRight className="w-4 h-4" />
+                    <Link to={user ? "#" : "/auth?mode=signup"}>
+                      {plan.isCurrent && user ? "Current Plan" : plan.buttonText}
+                      {!plan.isCurrent && <ArrowRight className="w-4 h-4" />}
                     </Link>
                   </Button>
                 </motion.div>
               ))}
             </div>
+
+            {/* Premium Benefits */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="max-w-4xl mx-auto mb-16"
+            >
+              <div className="text-center mb-10">
+                <h2 className="text-2xl font-display font-bold mb-2">
+                  What you get with Momentum+
+                </h2>
+                <p className="text-muted-foreground">
+                  Everything you need to become your best self
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                {premiumBenefits.map((benefit, index) => (
+                  <motion.div
+                    key={benefit.title}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.1 }}
+                    className="p-5 rounded-2xl bg-card border border-border"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
+                      <benefit.icon className="w-5 h-5 text-primary" />
+                    </div>
+                    <h3 className="font-semibold mb-1">{benefit.title}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {benefit.description}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
 
             {/* FAQ Section */}
             <motion.div
@@ -214,30 +324,30 @@ const Pricing = () => {
               className="text-center"
             >
               <h2 className="text-2xl font-display font-bold mb-4">
-                Questions? We've got answers.
+                Questions? We're here.
               </h2>
               <p className="text-muted-foreground mb-8">
-                Need help choosing a plan? Contact us at{" "}
+                Need help choosing?{" "}
                 <a
                   href="mailto:hello@goalsync.app"
                   className="text-primary hover:underline"
                 >
-                  hello@goalsync.app
+                  Reach out to us
                 </a>
               </p>
 
               <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-primary" />
-                  14-day free trial
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  No credit card required
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
                   Cancel anytime
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  No hidden fees
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  Secure payments
                 </div>
               </div>
             </motion.div>

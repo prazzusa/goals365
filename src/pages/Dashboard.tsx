@@ -6,20 +6,27 @@ import { Heart, LogOut, Settings, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOnboarding } from "@/hooks/useOnboarding";
+import { usePremium } from "@/hooks/usePremium";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MomentumScore } from "@/components/dashboard/MomentumScore";
 import { DailyInsight } from "@/components/dashboard/DailyInsight";
 import { CategorySection } from "@/components/dashboard/CategorySection";
 import { GoalCard } from "@/components/dashboard/GoalCard";
+import { TierBadge } from "@/components/premium/TierBadge";
+import { SubtleUpsell } from "@/components/premium/SubtleUpsell";
+import { FeatureGate } from "@/components/premium/FeatureGate";
+import { UpsellPrompt } from "@/components/premium/UpsellPrompt";
 import { format } from "date-fns";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();
   const { progress, loading: onboardingLoading, isCompleted } = useOnboarding();
+  const { isPremium, limits, loading: premiumLoading } = usePremium();
   const [dailyGoals, setDailyGoals] = useState<any[]>([]);
   const [momentumData, setMomentumData] = useState({ score: 150, level: "seed" as const, streak: 3 });
+  const [showCategoryUpsell, setShowCategoryUpsell] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -55,13 +62,25 @@ const Dashboard = () => {
     fetchTodaysGoals();
   };
 
-  if (authLoading || onboardingLoading) {
+  if (authLoading || onboardingLoading || premiumLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
+
+  // Count active categories for free tier limit
+  const activeCategories = [
+    (progress?.personal_goals?.length || 0) > 0,
+    (progress?.professional_goals?.length || 0) > 0,
+    (progress?.fitness_goals?.length || 0) > 0,
+  ].filter(Boolean).length;
+
+  const canAccessCategory = (index: number) => {
+    if (isPremium) return true;
+    return index < limits.maxCategories;
+  };
 
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "there";
   const hour = new Date().getHours();
@@ -101,17 +120,42 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <TierBadge compact onClick={() => navigate("/pricing")} />
               <Button variant="ghost" size="icon" className="rounded-xl" onClick={handleSignOut}>
                 <LogOut className="w-5 h-5" />
               </Button>
             </div>
           </div>
+          
+          {/* Category limit banner for free users */}
+          {!isPremium && activeCategories >= limits.maxCategories && (
+            <div className="px-4 pb-3">
+              <SubtleUpsell 
+                message="Unlock all goal categories" 
+                context="category" 
+              />
+            </div>
+          )}
         </header>
 
         {/* Content */}
         <main className="p-4 pb-24 space-y-6 max-w-lg mx-auto">
           {/* Momentum Score */}
-          <MomentumScore score={momentumData.score} level={momentumData.level} streakDays={momentumData.streak} weeklyChange={12} />
+          {/* Momentum Score - Full version for premium, limited for free */}
+          <FeatureGate
+            feature="hasFullMomentumScore"
+            context="analytics"
+            fallback={
+              <MomentumScore 
+                score={momentumData.score} 
+                level={momentumData.level} 
+                streakDays={momentumData.streak} 
+                compact={true}
+              />
+            }
+          >
+            <MomentumScore score={momentumData.score} level={momentumData.level} streakDays={momentumData.streak} weeklyChange={12} />
+          </FeatureGate>
 
           {/* Daily Insight */}
           <DailyInsight message={insight.message} type={insight.type} onAction={() => navigate("/addgoals/personal")} actionLabel="Add goal" />
@@ -176,6 +220,13 @@ const Dashboard = () => {
             </Link>
           </div>
         </nav>
+
+        {/* Category upsell modal */}
+        <UpsellPrompt
+          isOpen={showCategoryUpsell}
+          onClose={() => setShowCategoryUpsell(false)}
+          context="category"
+        />
       </div>
     </>
   );
