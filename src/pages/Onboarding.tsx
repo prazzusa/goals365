@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { CategoryCard } from "@/components/onboarding/CategoryCard";
 import { OptionButton } from "@/components/onboarding/OptionButton";
 import { ProgressDots } from "@/components/onboarding/ProgressDots";
+import { WelcomeReveal } from "@/components/onboarding/WelcomeReveal";
+import { format } from "date-fns";
 
 const TOTAL_STEPS = 4;
 
@@ -35,7 +37,9 @@ const Onboarding = () => {
   const [dailyTime, setDailyTime] = useState(15);
   const [motivationStyle, setMotivationStyle] = useState("gentle");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [completedArchetype, setCompletedArchetype] = useState("");
+  const [goalsCreated, setGoalsCreated] = useState(0);
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
   }, [user, authLoading, navigate]);
@@ -93,7 +97,58 @@ const Onboarding = () => {
         archetype,
       });
 
-      // Map categories to goals
+      // Create sample daily goals based on selected categories
+      const today = format(new Date(), "yyyy-MM-dd");
+      const starterGoals: { title: string; category: string }[] = [];
+
+      // Goal templates by category with variety
+      const goalTemplates: Record<string, string[]> = {
+        personal: [
+          "Take 5 minutes for mindfulness",
+          "Write in your journal",
+          "Read for 15 minutes",
+          "Practice gratitude",
+        ],
+        professional: [
+          "Complete your top priority task",
+          "Learn something new for 10 min",
+          "Review your weekly goals",
+          "Clear your inbox",
+        ],
+        fitness: [
+          "Take a 20-minute walk",
+          "Do 10 minutes of stretching",
+          "Drink 8 glasses of water",
+          "Get 7+ hours of sleep",
+        ],
+      };
+
+      // Pick 1-2 goals per selected category
+      selectedCategories.forEach((category) => {
+        const templates = goalTemplates[category] || [];
+        const shuffled = [...templates].sort(() => Math.random() - 0.5);
+        const count = experienceLevel === "beginner" ? 1 : 2;
+        shuffled.slice(0, count).forEach((title) => {
+          starterGoals.push({ title, category });
+        });
+      });
+
+      // Insert daily goals
+      if (starterGoals.length > 0) {
+        const goalsToInsert = starterGoals.map((goal) => ({
+          user_id: user!.id,
+          title: goal.title,
+          category: goal.category,
+          date: today,
+          progress: 0,
+          completed: false,
+        }));
+
+        await supabase.from("daily_goals").insert(goalsToInsert);
+        setGoalsCreated(goalsToInsert.length);
+      }
+
+      // Map categories to onboarding goals
       const goalMap: Record<string, string[]> = {
         personal: ["Build better habits", "Practice mindfulness"],
         professional: ["Improve productivity", "Learn new skills"],
@@ -107,14 +162,28 @@ const Onboarding = () => {
       });
 
       await completeOnboarding();
-      toast.success(`Welcome, ${archetypes[archetype as keyof typeof archetypes].name}! Let's begin.`);
-      navigate("/dashboard");
+      
+      // Show welcome reveal instead of navigating directly
+      setCompletedArchetype(archetype);
+      setShowWelcome(true);
     } catch (error) {
+      console.error("Onboarding error:", error);
       toast.error("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Show welcome reveal screen after completion
+  if (showWelcome) {
+    return (
+      <WelcomeReveal
+        archetype={completedArchetype}
+        userName={user?.user_metadata?.full_name?.split(" ")[0]}
+        goalsCreated={goalsCreated}
+      />
+    );
+  }
 
   if (authLoading || onboardingLoading) {
     return (
