@@ -40,10 +40,11 @@ const Goals = () => {
     if (!authLoading && !user) navigate("/auth");
   }, [user, authLoading, navigate]);
 
-  // Check if user has completed all setup steps for at least one category
+  // Check if user has completed setup (has any goals at all)
   const hasCompletedAnySetup = useMemo(() => {
-    return goals.yearlyGoals.length > 0 && goals.weeklyGoals.length > 0;
-  }, [goals.yearlyGoals, goals.weeklyGoals]);
+    // User has completed setup if they have yearly goals with weekly goals, OR if they have daily goals from onboarding
+    return (goals.yearlyGoals.length > 0 && goals.weeklyGoals.length > 0) || goals.dailyGoals.length > 0;
+  }, [goals.yearlyGoals, goals.weeklyGoals, goals.dailyGoals]);
 
   // Get category-specific data
   const yearlyGoalsForCategory = goals.getYearlyGoalsByCategory(validCategory);
