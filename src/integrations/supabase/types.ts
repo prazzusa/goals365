@@ -64,6 +64,42 @@ export type Database = {
           },
         ]
       }
+      daily_insights: {
+        Row: {
+          category: string | null
+          created_at: string
+          date: string
+          energy_level: number | null
+          id: string
+          message: string | null
+          mood: string | null
+          suggestion: string | null
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          date: string
+          energy_level?: number | null
+          id?: string
+          message?: string | null
+          mood?: string | null
+          suggestion?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          date?: string
+          energy_level?: number | null
+          id?: string
+          message?: string | null
+          mood?: string | null
+          suggestion?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       exercise_logs: {
         Row: {
           calories_burned: number | null
@@ -136,6 +172,57 @@ export type Database = {
           meal_category?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      momentum_scores: {
+        Row: {
+          balance_score: number | null
+          consistency_score: number | null
+          created_at: string
+          effort_score: number | null
+          id: string
+          level: string | null
+          longest_streak: number | null
+          recovery_score: number | null
+          score: number | null
+          streak_days: number | null
+          total_goals_completed: number | null
+          updated_at: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          balance_score?: number | null
+          consistency_score?: number | null
+          created_at?: string
+          effort_score?: number | null
+          id?: string
+          level?: string | null
+          longest_streak?: number | null
+          recovery_score?: number | null
+          score?: number | null
+          streak_days?: number | null
+          total_goals_completed?: number | null
+          updated_at?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          balance_score?: number | null
+          consistency_score?: number | null
+          created_at?: string
+          effort_score?: number | null
+          id?: string
+          level?: string | null
+          longest_streak?: number | null
+          recovery_score?: number | null
+          score?: number | null
+          streak_days?: number | null
+          total_goals_completed?: number | null
+          updated_at?: string
+          user_id?: string
+          week_start?: string
         }
         Relationships: []
       }
@@ -247,6 +334,51 @@ export type Database = {
           full_name?: string | null
           id?: string
           onboarding_completed?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          archetype: string | null
+          created_at: string
+          daily_time: number | null
+          experience_level: string | null
+          gender: string | null
+          id: string
+          is_premium: boolean | null
+          motivation_style: string | null
+          roadmap_generated_at: string | null
+          selected_categories: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archetype?: string | null
+          created_at?: string
+          daily_time?: number | null
+          experience_level?: string | null
+          gender?: string | null
+          id?: string
+          is_premium?: boolean | null
+          motivation_style?: string | null
+          roadmap_generated_at?: string | null
+          selected_categories?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archetype?: string | null
+          created_at?: string
+          daily_time?: number | null
+          experience_level?: string | null
+          gender?: string | null
+          id?: string
+          is_premium?: boolean | null
+          motivation_style?: string | null
+          roadmap_generated_at?: string | null
+          selected_categories?: string[] | null
           updated_at?: string
           user_id?: string
         }
