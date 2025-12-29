@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { motion, AnimatePresence } from "framer-motion";
-import { Heart, LogOut, Settings, Plus } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
+import { Heart, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOnboarding } from "@/hooks/useOnboarding";
@@ -12,8 +12,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MomentumScore } from "@/components/dashboard/MomentumScore";
 import { DailyInsight } from "@/components/dashboard/DailyInsight";
-import { CategorySection } from "@/components/dashboard/CategorySection";
-import { GoalCard } from "@/components/dashboard/GoalCard";
 import { TierBadge } from "@/components/premium/TierBadge";
 import { SubtleUpsell } from "@/components/premium/SubtleUpsell";
 import { FeatureGate } from "@/components/premium/FeatureGate";
@@ -63,13 +61,6 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  const toggleGoalComplete = async (goalId: string, completed: boolean) => {
-    await supabase.from("daily_goals").update({ completed: !completed }).eq("id", goalId);
-    fetchTodaysGoals();
-    // Refresh momentum after goal completion
-    refreshMomentum();
-  };
-
   if (authLoading || onboardingLoading || premiumLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -85,18 +76,9 @@ const Dashboard = () => {
     (progress?.fitness_goals?.length || 0) > 0,
   ].filter(Boolean).length;
 
-  const canAccessCategory = (index: number) => {
-    if (isPremium) return true;
-    return index < limits.maxCategories;
-  };
-
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "there";
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-
-  const personalGoals = dailyGoals.filter(g => g.category === "personal");
-  const professionalGoals = dailyGoals.filter(g => g.category === "professional");
-  const fitnessGoals = dailyGoals.filter(g => g.category === "fitness");
 
   const getInsightMessage = () => {
     const completed = dailyGoals.filter(g => g.completed).length;
@@ -148,7 +130,7 @@ const Dashboard = () => {
 
         {/* Content */}
         <main className="p-4 pb-24 space-y-6 max-w-lg mx-auto">
-          {/* Momentum Score - Full version for premium, limited for free */}
+          {/* Momentum Score */}
           <FeatureGate
             feature="hasFullMomentumScore"
             context="analytics"
@@ -177,53 +159,7 @@ const Dashboard = () => {
           />
 
           {/* Daily Insight */}
-          <DailyInsight message={insight.message} type={insight.type} onAction={() => navigate("/addgoals/personal")} actionLabel="Add goal" />
-
-          {/* Categories */}
-          {(progress?.personal_goals?.length || 0) > 0 && (
-            <CategorySection category="personal" title="Personal" count={personalGoals.length} completedCount={personalGoals.filter(g => g.completed).length}>
-              {personalGoals.slice(0, 3).map((goal, i) => (
-                <GoalCard key={goal.id} title={goal.title} category="personal" progress={goal.progress} isCompleted={goal.completed} onComplete={() => toggleGoalComplete(goal.id, goal.completed)} delay={i} />
-              ))}
-              {personalGoals.length === 0 && (
-                <Link to="/addgoals/personal">
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-2xl border-2 border-dashed border-border hover:border-primary/30 transition-colors flex items-center justify-center gap-2 text-muted-foreground">
-                    <Plus className="w-4 h-4" /> Add personal goal
-                  </motion.div>
-                </Link>
-              )}
-            </CategorySection>
-          )}
-
-          {(progress?.professional_goals?.length || 0) > 0 && (
-            <CategorySection category="professional" title="Professional" count={professionalGoals.length} completedCount={professionalGoals.filter(g => g.completed).length}>
-              {professionalGoals.slice(0, 3).map((goal, i) => (
-                <GoalCard key={goal.id} title={goal.title} category="professional" progress={goal.progress} isCompleted={goal.completed} onComplete={() => toggleGoalComplete(goal.id, goal.completed)} delay={i} />
-              ))}
-              {professionalGoals.length === 0 && (
-                <Link to="/addgoals/professional">
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-2xl border-2 border-dashed border-border hover:border-primary/30 transition-colors flex items-center justify-center gap-2 text-muted-foreground">
-                    <Plus className="w-4 h-4" /> Add professional goal
-                  </motion.div>
-                </Link>
-              )}
-            </CategorySection>
-          )}
-
-          {(progress?.fitness_goals?.length || 0) > 0 && (
-            <CategorySection category="fitness" title="Fitness" count={fitnessGoals.length} completedCount={fitnessGoals.filter(g => g.completed).length}>
-              {fitnessGoals.slice(0, 3).map((goal, i) => (
-                <GoalCard key={goal.id} title={goal.title} category="fitness" progress={goal.progress} isCompleted={goal.completed} onComplete={() => toggleGoalComplete(goal.id, goal.completed)} delay={i} />
-              ))}
-              {fitnessGoals.length === 0 && (
-                <Link to="/addgoals/fitness">
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-2xl border-2 border-dashed border-border hover:border-primary/30 transition-colors flex items-center justify-center gap-2 text-muted-foreground">
-                    <Plus className="w-4 h-4" /> Add fitness goal
-                  </motion.div>
-                </Link>
-              )}
-            </CategorySection>
-          )}
+          <DailyInsight message={insight.message} type={insight.type} onAction={() => setActiveFlow("set")} actionLabel="Add goal" />
         </main>
 
         {/* Bottom Nav */}
