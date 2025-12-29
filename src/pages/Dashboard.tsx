@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Heart, LogOut, Settings, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,6 +18,10 @@ import { TierBadge } from "@/components/premium/TierBadge";
 import { SubtleUpsell } from "@/components/premium/SubtleUpsell";
 import { FeatureGate } from "@/components/premium/FeatureGate";
 import { UpsellPrompt } from "@/components/premium/UpsellPrompt";
+import GoalActions from "@/components/dashboard/GoalActions";
+import SetGoalsFlow from "@/components/dashboard/SetGoalsFlow";
+import UpdateGoalsFlow from "@/components/dashboard/UpdateGoalsFlow";
+import TrackGoalsFlow from "@/components/dashboard/TrackGoalsFlow";
 import { format } from "date-fns";
 
 const Dashboard = () => {
@@ -28,6 +32,7 @@ const Dashboard = () => {
   const { momentum, loading: momentumLoading, refresh: refreshMomentum } = useMomentum();
   const [dailyGoals, setDailyGoals] = useState<any[]>([]);
   const [showCategoryUpsell, setShowCategoryUpsell] = useState(false);
+  const [activeFlow, setActiveFlow] = useState<"set" | "update" | "track" | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -164,6 +169,13 @@ const Dashboard = () => {
             />
           </FeatureGate>
 
+          {/* Goal Actions - Set, Update, Track */}
+          <GoalActions
+            onSetGoals={() => setActiveFlow("set")}
+            onUpdateGoals={() => setActiveFlow("update")}
+            onTrackGoals={() => setActiveFlow("track")}
+          />
+
           {/* Daily Insight */}
           <DailyInsight message={insight.message} type={insight.type} onAction={() => navigate("/addgoals/personal")} actionLabel="Add goal" />
 
@@ -234,6 +246,19 @@ const Dashboard = () => {
           onClose={() => setShowCategoryUpsell(false)}
           context="category"
         />
+
+        {/* Goal Flow Modals */}
+        <AnimatePresence>
+          {activeFlow === "set" && (
+            <SetGoalsFlow onClose={() => setActiveFlow(null)} />
+          )}
+          {activeFlow === "update" && (
+            <UpdateGoalsFlow onClose={() => setActiveFlow(null)} />
+          )}
+          {activeFlow === "track" && (
+            <TrackGoalsFlow onClose={() => setActiveFlow(null)} />
+          )}
+        </AnimatePresence>
       </div>
     </>
   );
