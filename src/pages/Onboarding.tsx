@@ -147,9 +147,33 @@ const Onboarding = () => {
                   <p className="text-muted-foreground">Select one or more areas to focus on</p>
                 </div>
                 <div className="space-y-4">
-                  <CategoryCard category="personal" title="Personal Growth" subtitle="Nurture your mind & soul" microcopy="\"The journey of self-discovery starts here\"" isSelected={selectedCategories.includes("personal")} onSelect={() => toggleCategory("personal")} delay={0} />
-                  <CategoryCard category="professional" title="Professional Growth" subtitle="Advance your career" microcopy="\"Build the future you deserve\"" isSelected={selectedCategories.includes("professional")} onSelect={() => toggleCategory("professional")} delay={1} />
-                  <CategoryCard category="fitness" title="Fitness & Wellness" subtitle="Honor your body" microcopy="\"Strong body, strong mind\"" isSelected={selectedCategories.includes("fitness")} onSelect={() => toggleCategory("fitness")} delay={2} />
+                  <CategoryCard 
+                    category="personal" 
+                    title="Personal Growth" 
+                    subtitle="Nurture your mind & soul" 
+                    microcopy="The journey of self-discovery starts here" 
+                    isSelected={selectedCategories.includes("personal")} 
+                    onSelect={() => toggleCategory("personal")} 
+                    delay={0} 
+                  />
+                  <CategoryCard 
+                    category="professional" 
+                    title="Professional Growth" 
+                    subtitle="Advance your career" 
+                    microcopy="Build the future you deserve" 
+                    isSelected={selectedCategories.includes("professional")} 
+                    onSelect={() => toggleCategory("professional")} 
+                    delay={1} 
+                  />
+                  <CategoryCard 
+                    category="fitness" 
+                    title="Fitness & Wellness" 
+                    subtitle="Honor your body" 
+                    microcopy="Strong body, strong mind" 
+                    isSelected={selectedCategories.includes("fitness")} 
+                    onSelect={() => toggleCategory("fitness")} 
+                    delay={2} 
+                  />
                 </div>
               </motion.div>
             )}
