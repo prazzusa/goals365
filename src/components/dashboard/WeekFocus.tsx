@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, BookOpen } from "lucide-react";
+import { ChevronDown, BookOpen, Target, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,33 +28,33 @@ interface WeekFocusProps {
   onReflectionClick?: () => void;
 }
 
-const effortColors = {
-  S: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  M: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  L: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+const effortConfig = {
+  S: { 
+    label: "Small", 
+    color: "text-emerald-600 dark:text-emerald-400", 
+    bg: "bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/40",
+    border: "border-emerald-300 dark:border-emerald-700"
+  },
+  M: { 
+    label: "Medium", 
+    color: "text-blue-600 dark:text-blue-400", 
+    bg: "bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40",
+    border: "border-blue-300 dark:border-blue-700"
+  },
+  L: { 
+    label: "Large", 
+    color: "text-amber-600 dark:text-amber-400", 
+    bg: "bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/40 dark:to-orange-900/40",
+    border: "border-amber-300 dark:border-amber-700"
+  },
 };
 
 type Status = "todo" | "in_progress" | "done";
 
-const statusConfig: Record<Status, { label: string; bgColor: string; borderColor: string; textColor: string }> = {
-  todo: { 
-    label: "To Do", 
-    bgColor: "bg-slate-50 dark:bg-slate-900/50",
-    borderColor: "border-slate-200 dark:border-slate-800",
-    textColor: "text-slate-700 dark:text-slate-300"
-  },
-  in_progress: { 
-    label: "In Progress", 
-    bgColor: "bg-blue-50 dark:bg-blue-900/30",
-    borderColor: "border-blue-200 dark:border-blue-800",
-    textColor: "text-blue-700 dark:text-blue-300"
-  },
-  done: { 
-    label: "Done", 
-    bgColor: "bg-emerald-50 dark:bg-emerald-900/30",
-    borderColor: "border-emerald-200 dark:border-emerald-800",
-    textColor: "text-emerald-700 dark:text-emerald-300"
-  },
+const statusConfig: Record<Status, { label: string; textColor: string }> = {
+  todo: { label: "To Do", textColor: "text-slate-600 dark:text-slate-400" },
+  in_progress: { label: "In Progress", textColor: "text-blue-600 dark:text-blue-400" },
+  done: { label: "Done", textColor: "text-emerald-600 dark:text-emerald-400" },
 };
 
 const WeekFocus = ({ tasks, onTaskToggle, onTaskStatusChange, onReflectionClick }: WeekFocusProps) => {
@@ -69,57 +69,69 @@ const WeekFocus = ({ tasks, onTaskToggle, onTaskStatusChange, onReflectionClick 
   };
 
   const handleSaveReflection = (reflection: any) => {
-    // Save reflection to database
     console.log("Saving weekly reflection:", reflection);
-    // TODO: Implement save to database
   };
 
-  // Calculate day-based color for weekly goals
-  const getTaskColor = (task: WeekTask) => {
+  // Calculate day-based urgency color
+  const getUrgencyIndicator = (task: WeekTask) => {
+    if (task.status === "done") return null;
+    if (task.status === "in_progress") return null;
+    
+    const today = new Date();
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const daysSinceWeekStart = differenceInDays(today, weekStart);
+
+    if (daysSinceWeekStart >= 4) {
+      return <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="End of week - needs attention" />;
+    } else if (daysSinceWeekStart >= 2) {
+      return <span className="w-2 h-2 rounded-full bg-amber-500" title="Mid-week" />;
+    }
+    return null;
+  };
+
+  const getTaskBgStyle = (task: WeekTask) => {
     if (task.status === "done") {
-      return {
-        bgColor: "bg-emerald-50 dark:bg-emerald-900/30",
-        borderColor: "border-emerald-200 dark:border-emerald-800",
-        textColor: "text-emerald-700 dark:text-emerald-300",
-      };
+      return "bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border-emerald-200 dark:border-emerald-800";
     }
-
-    if (task.status === "todo") {
-      const today = new Date();
-      const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Monday as week start
-      const daysSinceWeekStart = differenceInDays(today, weekStart);
-
-      // If it's Friday (day 4) or later and still TODO, show red
-      if (daysSinceWeekStart >= 4) {
-        return {
-          bgColor: "bg-red-50 dark:bg-red-900/30",
-          borderColor: "border-red-200 dark:border-red-800",
-          textColor: "text-red-700 dark:text-red-300",
-        };
-      } 
-      // If it's Wednesday (day 2) or later and still TODO, show yellow
-      else if (daysSinceWeekStart >= 2) {
-        return {
-          bgColor: "bg-yellow-50 dark:bg-yellow-900/30",
-          borderColor: "border-yellow-200 dark:border-yellow-800",
-          textColor: "text-yellow-700 dark:text-yellow-300",
-        };
-      }
+    if (task.status === "in_progress") {
+      return "bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800";
     }
+    
+    const today = new Date();
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const daysSinceWeekStart = differenceInDays(today, weekStart);
 
-    // Default TODO color (Monday-Tuesday)
-    return statusConfig.todo;
+    if (daysSinceWeekStart >= 4) {
+      return "bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-red-200 dark:border-red-800";
+    } else if (daysSinceWeekStart >= 2) {
+      return "bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border-amber-200 dark:border-amber-800";
+    }
+    
+    return "bg-card border-border";
   };
+
+  const weekRange = `${format(startOfWeek(new Date(), { weekStartsOn: 1 }), "MMM d")} - ${format(new Date(startOfWeek(new Date(), { weekStartsOn: 1 }).getTime() + 6 * 24 * 60 * 60 * 1000), "MMM d")}`;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
-      className="bg-card rounded-2xl p-5 shadow-sm border border-border/50"
+      className="bg-gradient-to-br from-card via-card to-fitness/5 rounded-3xl p-5 shadow-card border border-border/50 overflow-hidden relative"
     >
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-foreground">This Week</h2>
+      {/* Decorative element */}
+      <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-tr from-fitness/20 to-primary/10 rounded-full blur-2xl" />
+      
+      <div className="flex items-center justify-between mb-4 relative">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-fitness to-emerald-400 flex items-center justify-center">
+            <Target className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">This Week</h2>
+            <p className="text-xs text-muted-foreground">{weekRange}</p>
+          </div>
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -130,24 +142,25 @@ const WeekFocus = ({ tasks, onTaskToggle, onTaskStatusChange, onReflectionClick 
               setShowReflection(true);
             }
           }}
-          className="rounded-xl gap-2"
+          className="rounded-xl gap-2 border-fitness/30 hover:bg-fitness/10"
         >
-          <BookOpen className="w-4 h-4" />
-          Reflection
+          <BookOpen className="w-4 h-4 text-fitness" />
+          Reflect
         </Button>
       </div>
 
       {/* Tasks List */}
-      <div className="space-y-2">
+      <div className="space-y-2 relative">
         {tasks.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">
-            No weekly goals set yet
+            No weekly tasks set yet
           </p>
         ) : (
           <AnimatePresence>
             {tasks.map((task, index) => {
               const currentStatus = (task.status || "todo") as Status;
-              const colorConfig = getTaskColor(task);
+              const effort = effortConfig[task.effort];
+              const urgency = getUrgencyIndicator(task);
               
               return (
                 <motion.div
@@ -157,12 +170,10 @@ const WeekFocus = ({ tasks, onTaskToggle, onTaskStatusChange, onReflectionClick 
                   exit={{ opacity: 0, x: -100 }}
                   transition={{ delay: index * 0.05 }}
                   className={cn(
-                    "p-4 rounded-xl border-2 transition-all cursor-pointer hover:shadow-md",
-                    colorConfig.bgColor,
-                    colorConfig.borderColor
+                    "p-4 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-lg hover:scale-[1.01]",
+                    getTaskBgStyle(task)
                   )}
                   onClick={(e) => {
-                    // Don't open dialog if clicking on dropdown
                     if ((e.target as HTMLElement).closest('[role="menu"]') || 
                         (e.target as HTMLElement).closest('button')) {
                       return;
@@ -172,14 +183,22 @@ const WeekFocus = ({ tasks, onTaskToggle, onTaskStatusChange, onReflectionClick 
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <p className={cn("font-medium text-sm mb-1", colorConfig.textColor)}>
-                        {task.title}
-                      </p>
+                      <div className="flex items-center gap-2 mb-1">
+                        {urgency}
+                        <p className={cn(
+                          "font-medium text-sm",
+                          task.status === "done" && "line-through opacity-60"
+                        )}>
+                          {task.title}
+                        </p>
+                      </div>
                       <span className={cn(
-                        "text-xs font-bold px-2 py-0.5 rounded",
-                        effortColors[task.effort]
+                        "text-xs font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1",
+                        effort.bg,
+                        effort.color
                       )}>
-                        {task.effort}
+                        <Zap className="w-3 h-3" />
+                        {task.effort} - {effort.label}
                       </span>
                     </div>
                     <DropdownMenu>
@@ -187,14 +206,14 @@ const WeekFocus = ({ tasks, onTaskToggle, onTaskStatusChange, onReflectionClick 
                         <Button
                           variant="ghost"
                           size="sm"
-                          className={cn("rounded-lg", colorConfig.textColor)}
+                          className={cn("rounded-xl", statusConfig[currentStatus].textColor)}
                           onClick={(e) => e.stopPropagation()}
                         >
                           {statusConfig[currentStatus].label}
                           <ChevronDown className="w-4 h-4 ml-1" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuContent align="end" className="w-40 bg-popover">
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
