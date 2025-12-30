@@ -37,66 +37,66 @@ const Dashboard = () => {
     }
   }, [planningLoading, isCompleted, user, navigate]);
 
-  // Fetch goals data
-  useEffect(() => {
+  const fetchGoalsData = async () => {
     if (!user) return;
 
-    const fetchData = async () => {
-      // Fetch quarterly/yearly goals
-      const { data: yearlyData } = await supabase
-        .from("yearly_goals")
-        .select("id, title, category")
-        .eq("user_id", user.id);
+    // Fetch quarterly/yearly goals
+    const { data: yearlyData } = await supabase
+      .from("yearly_goals")
+      .select("id, title, category")
+      .eq("user_id", user.id);
 
-      if (yearlyData) {
-        setQuarterGoals(yearlyData.map((g) => ({
-          id: g.id,
-          title: g.title,
-          category: g.category as "personal" | "professional" | "fitness",
-          progress: Math.floor(Math.random() * 100), // Placeholder - would calculate from actual data
-        })));
-      }
+    if (yearlyData) {
+      setQuarterGoals(yearlyData.map((g) => ({
+        id: g.id,
+        title: g.title,
+        category: g.category as "personal" | "professional" | "fitness",
+        progress: Math.floor(Math.random() * 100), // Placeholder - would calculate from actual data
+      })));
+    }
 
-      // Fetch monthly goals
-      const currentMonth = getMonth(new Date()) + 1;
-      const currentYear = getYear(new Date());
-      
-      const { data: monthlyData } = await supabase
-        .from("monthly_goals")
-        .select("id, title, progress, priority")
-        .eq("user_id", user.id)
-        .eq("month", currentMonth)
-        .eq("year", currentYear);
+    // Fetch monthly goals
+    const currentMonth = getMonth(new Date()) + 1;
+    const currentYear = getYear(new Date());
+    
+    const { data: monthlyData } = await supabase
+      .from("monthly_goals")
+      .select("id, title, progress, priority")
+      .eq("user_id", user.id)
+      .eq("month", currentMonth)
+      .eq("year", currentYear);
 
-      if (monthlyData) {
-        setMonthGoals(monthlyData.map((g) => ({
-          id: g.id,
-          title: g.title,
-          priority: (g.priority || "medium") as "low" | "medium" | "high",
-          progress: g.progress || 0,
-        })));
-      }
+    if (monthlyData) {
+      setMonthGoals(monthlyData.map((g) => ({
+        id: g.id,
+        title: g.title,
+        priority: (g.priority || "medium") as "low" | "medium" | "high",
+        progress: g.progress || 0,
+      })));
+    }
 
-      // Fetch weekly tasks
-      const weekStart = format(startOfWeek(new Date()), "yyyy-MM-dd");
-      
-      const { data: weeklyData } = await supabase
-        .from("weekly_goals")
-        .select("id, title, effort, status")
-        .eq("user_id", user.id)
-        .eq("week_start", weekStart);
+    // Fetch weekly tasks
+    const weekStart = format(startOfWeek(new Date()), "yyyy-MM-dd");
+    
+    const { data: weeklyData } = await supabase
+      .from("weekly_goals")
+      .select("id, title, effort, status")
+      .eq("user_id", user.id)
+      .eq("week_start", weekStart);
 
-      if (weeklyData) {
-        setWeekTasks(weeklyData.map((t) => ({
-          id: t.id,
-          title: t.title,
-          effort: (t.effort || "M") as "S" | "M" | "L",
-          status: (t.status || "todo") as "todo" | "in_progress" | "done",
-        })));
-      }
-    };
+    if (weeklyData) {
+      setWeekTasks(weeklyData.map((t) => ({
+        id: t.id,
+        title: t.title,
+        effort: (t.effort || "M") as "S" | "M" | "L",
+        status: (t.status || "todo") as "todo" | "in_progress" | "done",
+      })));
+    }
+  };
 
-    fetchData();
+  // Fetch goals data
+  useEffect(() => {
+    fetchGoalsData();
   }, [user]);
 
   const handleSignOut = async () => {
@@ -175,6 +175,7 @@ const Dashboard = () => {
           <QuarterFocus 
             goals={quarterGoals}
             onViewDetails={() => navigate("/planning")}
+            onGoalsChange={fetchGoalsData}
           />
 
           {/* Month Focus */}
