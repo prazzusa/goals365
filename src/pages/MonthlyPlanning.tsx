@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { startOfMonth, getMonth, getYear } from "date-fns";
 import { usePlanningProgress } from "@/hooks/usePlanningProgress";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 import MonthlyWelcome from "@/components/monthly/MonthlyWelcome";
 import MonthSelector from "@/components/monthly/MonthSelector";
 import MonthlyGoalRefinement, { MonthlyGoalStatus } from "@/components/monthly/MonthlyGoalRefinement";
@@ -180,6 +182,19 @@ const MonthlyPlanning = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Return to Dashboard Button */}
+      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border">
+        <div className="max-w-lg mx-auto px-4 py-3">
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/dashboard")}
+            className="rounded-xl gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Return to Dashboard
+          </Button>
+        </div>
+      </div>
       <AnimatePresence mode="wait">
         <motion.div
           key={currentStep}

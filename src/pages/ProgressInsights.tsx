@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, Target, BarChart3, Zap } from "lucide-react";
+import { TrendingUp, Target, BarChart3, Zap, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
@@ -24,6 +24,17 @@ const ProgressInsights = () => {
 
   return (
     <div className="min-h-screen flex flex-col px-6 py-8">
+      {/* Return to Dashboard Button */}
+      <div className="mb-4">
+        <Button
+          variant="ghost"
+          onClick={() => navigate("/dashboard")}
+          className="rounded-xl gap-2 mb-4"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Return to Dashboard
+        </Button>
+      </div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Progress & Insights</h1>
         <p className="text-muted-foreground text-sm">Your momentum at a glance</p>
@@ -112,11 +123,11 @@ const ProgressInsights = () => {
         </motion.p>
 
         <Button
-          onClick={() => navigate("/planning")}
+          onClick={() => navigate("/dashboard")}
           size="lg"
           className="w-full h-14 text-lg font-semibold rounded-xl mt-6"
         >
-          Continue Planning
+          Return to Dashboard
         </Button>
       </div>
     </div>

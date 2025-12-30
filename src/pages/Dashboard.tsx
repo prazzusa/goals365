@@ -11,10 +11,11 @@ import { toast } from "sonner";
 import { format, startOfWeek, getMonth, getYear } from "date-fns";
 
 import MomentumGauge from "@/components/dashboard/MomentumGauge";
-import QuarterFocus from "@/components/dashboard/QuarterFocus";
 import MonthFocus from "@/components/dashboard/MonthFocus";
 import WeekFocus from "@/components/dashboard/WeekFocus";
 import DashboardActions from "@/components/dashboard/DashboardActions";
+import UpdateGoalsFlow from "@/components/dashboard/UpdateGoalsFlow";
+import ReflectionDialog from "@/components/dashboard/ReflectionDialog";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -22,9 +23,11 @@ const Dashboard = () => {
   const { progress, loading: planningLoading, isCompleted } = usePlanningProgress();
   const { momentum, loading: momentumLoading } = useMomentum();
   
-  const [quarterGoals, setQuarterGoals] = useState<any[]>([]);
   const [monthGoals, setMonthGoals] = useState<any[]>([]);
   const [weekTasks, setWeekTasks] = useState<any[]>([]);
+  const [showUpdateGoals, setShowUpdateGoals] = useState(false);
+  const [showWeeklyReflection, setShowWeeklyReflection] = useState(false);
+  const [showMonthlyReflection, setShowMonthlyReflection] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -39,21 +42,6 @@ const Dashboard = () => {
 
   const fetchGoalsData = async () => {
     if (!user) return;
-
-    // Fetch quarterly/yearly goals
-    const { data: yearlyData } = await supabase
-      .from("yearly_goals")
-      .select("id, title, category")
-      .eq("user_id", user.id);
-
-    if (yearlyData) {
-      setQuarterGoals(yearlyData.map((g) => ({
-        id: g.id,
-        title: g.title,
-        category: g.category as "personal" | "professional" | "fitness",
-        progress: Math.floor(Math.random() * 100), // Placeholder - would calculate from actual data
-      })));
-    }
 
     // Fetch monthly goals
     const currentMonth = getMonth(new Date()) + 1;
@@ -72,6 +60,7 @@ const Dashboard = () => {
         title: g.title,
         priority: (g.priority || "medium") as "low" | "medium" | "high",
         progress: g.progress || 0,
+        status: "todo" as "todo" | "in_progress" | "done", // Default to todo, will be updated when status column exists
       })));
     }
 
@@ -89,7 +78,7 @@ const Dashboard = () => {
         id: t.id,
         title: t.title,
         effort: (t.effort || "M") as "S" | "M" | "L",
-        status: (t.status || "todo") as "todo" | "in_progress" | "done",
+        status: ((t as any).status || "todo") as "todo" | "in_progress" | "done",
       })));
     }
   };
@@ -118,6 +107,17 @@ const Dashboard = () => {
 
     setWeekTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, status: nextStatus } : t))
+    );
+  };
+
+  const handleTaskStatusChange = async (taskId: string, status: "todo" | "in_progress" | "done") => {
+    await supabase
+      .from("weekly_goals")
+      .update({ status })
+      .eq("id", taskId);
+
+    setWeekTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status } : t))
     );
   };
 
@@ -171,29 +171,35 @@ const Dashboard = () => {
             weeklyChange={momentum.weeklyChange} 
           />
 
-          {/* Quarter Focus */}
-          <QuarterFocus 
-            goals={quarterGoals}
-            onViewDetails={() => navigate("/planning")}
-            onGoalsChange={fetchGoalsData}
+          {/* Week Focus */}
+          <WeekFocus 
+            tasks={weekTasks}
+            onTaskToggle={handleTaskToggle}
+            onTaskStatusChange={handleTaskStatusChange}
+            onReflectionClick={() => setShowWeeklyReflection(true)}
           />
 
           {/* Month Focus */}
           <MonthFocus 
             goals={monthGoals}
             onViewDetails={() => navigate("/monthly")}
-          />
-
-          {/* Week Focus */}
-          <WeekFocus 
-            tasks={weekTasks}
-            onTaskToggle={handleTaskToggle}
+            onStatusChange={async (goalId: string, status: "todo" | "in_progress" | "done") => {
+              // Update status in database (using type assertion since migration adds the column)
+              await supabase
+                .from("monthly_goals")
+                .update({ status: status } as any)
+                .eq("id", goalId);
+              
+              setMonthGoals((prev) =>
+                prev.map((g) => (g.id === goalId ? { ...g, status } : g))
+              );
+            }}
+            onReflectionClick={() => setShowMonthlyReflection(true)}
           />
 
           {/* Action Buttons */}
           <DashboardActions
-            onSetGoals={() => navigate("/planning")}
-            onUpdateGoals={() => navigate("/monthly")}
+            onUpdateGoals={() => setShowUpdateGoals(true)}
             onTrackProgress={() => navigate("/insights")}
           />
         </main>
@@ -212,6 +218,28 @@ const Dashboard = () => {
           </div>
         </nav>
       </div>
+
+      {/* Update Goals Modal */}
+      {showUpdateGoals && (
+        <UpdateGoalsFlow onClose={() => setShowUpdateGoals(false)} />
+      )}
+
+      {/* Reflection Dialogs */}
+      <ReflectionDialog
+        open={showWeeklyReflection}
+        onClose={() => setShowWeeklyReflection(false)}
+        type="weekly"
+        userId={user?.id}
+        weekStart={format(startOfWeek(new Date()), "yyyy-MM-dd")}
+      />
+      <ReflectionDialog
+        open={showMonthlyReflection}
+        onClose={() => setShowMonthlyReflection(false)}
+        type="monthly"
+        userId={user?.id}
+        month={getMonth(new Date()) + 1}
+        year={getYear(new Date())}
+      />
     </>
   );
 };

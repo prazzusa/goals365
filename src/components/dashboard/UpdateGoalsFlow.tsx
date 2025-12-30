@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Target, Briefcase, Dumbbell, Edit2, Trash2, Check, X, Sparkles } from "lucide-react";
+import { ArrowLeft, Calendar, CalendarDays, Edit2, Check, X, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { format } from "date-fns";
+import { format, startOfWeek, getMonth, getYear } from "date-fns";
 import { toast } from "sonner";
 
-type Category = "personal" | "professional" | "fitness";
+type GoalType = "weekly" | "monthly";
 
 interface UpdateGoalsFlowProps {
   onClose: () => void;
@@ -18,48 +18,27 @@ interface UpdateGoalsFlowProps {
 interface Goal {
   id: string;
   title: string;
-  progress: number;
-  completed: boolean;
-  category: string;
-  date: string;
+  progress?: number;
+  priority?: string;
+  effort?: string;
+  status?: string;
+  completed?: boolean;
 }
 
-const categoryConfig = {
-  personal: {
-    label: "Personal",
-    icon: Target,
-    gradient: "bg-gradient-to-br from-pink-500 to-rose-500",
-    bgLight: "bg-pink-50 dark:bg-pink-950/30",
-    borderColor: "border-pink-200 dark:border-pink-800",
-  },
-  professional: {
-    label: "Professional",
-    icon: Briefcase,
-    gradient: "bg-gradient-to-br from-emerald-500 to-green-500",
-    bgLight: "bg-emerald-50 dark:bg-emerald-950/30",
-    borderColor: "border-emerald-200 dark:border-emerald-800",
-  },
-  fitness: {
-    label: "Fitness",
-    icon: Dumbbell,
-    gradient: "bg-gradient-to-br from-amber-500 to-orange-500",
-    bgLight: "bg-amber-50 dark:bg-amber-950/30",
-    borderColor: "border-amber-200 dark:border-amber-800",
-  },
-};
-
-const CategoryButton = ({
-  category,
+const GoalTypeButton = ({
+  goalType,
   selected,
   onClick,
   delay = 0,
 }: {
-  category: Category;
+  goalType: GoalType;
   selected: boolean;
   onClick: () => void;
   delay?: number;
 }) => {
-  const config = categoryConfig[category];
+  const config = goalType === "weekly" 
+    ? { label: "Weekly Goals", icon: CalendarDays, gradient: "bg-gradient-to-br from-blue-500 to-cyan-500" }
+    : { label: "Monthly Goals", icon: Calendar, gradient: "bg-gradient-to-br from-purple-500 to-pink-500" };
   const Icon = config.icon;
 
   return (
@@ -71,39 +50,36 @@ const CategoryButton = ({
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       className={cn(
-        "flex-1 p-4 rounded-2xl flex flex-col items-center gap-2 transition-all border-2",
+        "flex-1 p-6 rounded-2xl flex flex-col items-center gap-3 transition-all border-2",
         selected
           ? cn(config.gradient, "border-transparent text-white shadow-lg")
           : cn("bg-card border-border hover:border-primary/30")
       )}
     >
       <div className={cn(
-        "w-12 h-12 rounded-xl flex items-center justify-center",
+        "w-16 h-16 rounded-xl flex items-center justify-center",
         selected ? "bg-white/20" : config.gradient
       )}>
-        <Icon className="w-6 h-6 text-white" />
+        <Icon className="w-8 h-8 text-white" />
       </div>
-      <span className={cn("font-semibold text-sm", !selected && "text-foreground")}>
+      <span className={cn("font-semibold text-base", !selected && "text-foreground")}>
         {config.label}
       </span>
     </motion.button>
   );
 };
 
-const GoalEditCard = ({
+const GoalListItem = ({
   goal,
-  category,
+  goalType,
   onUpdate,
-  onDelete,
   delay = 0,
 }: {
   goal: Goal;
-  category: Category;
+  goalType: GoalType;
   onUpdate: (id: string, title: string) => void;
-  onDelete: (id: string) => void;
   delay?: number;
 }) => {
-  const config = categoryConfig[category];
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(goal.title);
 
@@ -121,15 +97,11 @@ const GoalEditCard = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -100 }}
-      transition={{ delay, duration: 0.3 }}
-      className={cn(
-        "p-4 rounded-2xl border-2",
-        config.bgLight,
-        config.borderColor
-      )}
+      transition={{ delay, duration: 0.2 }}
+      className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors"
     >
       <AnimatePresence mode="wait">
         {isEditing ? (
@@ -138,7 +110,7 @@ const GoalEditCard = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 flex-1"
           >
             <Input
               value={editValue}
@@ -173,44 +145,20 @@ const GoalEditCard = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex items-center gap-3"
+            className="flex items-center gap-3 flex-1"
           >
-            <div className={cn(
-              "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
-              goal.completed ? config.gradient : "bg-muted"
-            )}>
-              {goal.completed ? (
-                <Check className="w-4 h-4 text-white" />
-              ) : (
-                <div className="w-3 h-3 rounded-full bg-muted-foreground/30" />
-              )}
-            </div>
-            
-            <span className={cn(
-              "flex-1 font-medium truncate",
-              goal.completed && "line-through text-muted-foreground"
-            )}>
+            <span className="flex-1 font-medium text-foreground">
               {goal.title}
             </span>
             
-            <div className="flex items-center gap-1">
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => setIsEditing(true)}
-                className="h-8 w-8 rounded-lg"
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => onDelete(goal.id)}
-                className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
-            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setIsEditing(true)}
+              className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+            >
+              <Edit2 className="w-4 h-4" />
+            </Button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -221,44 +169,60 @@ const GoalEditCard = ({
 const UpdateGoalsFlow = ({ onClose }: UpdateGoalsFlowProps) => {
   const { user } = useAuth();
   const [step, setStep] = useState<1 | 2>(1);
-  const [category, setCategory] = useState<Category | null>(null);
+  const [goalType, setGoalType] = useState<GoalType | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchGoals = async () => {
-    if (!user || !category) return;
+    if (!user || !goalType) return;
     
     setLoading(true);
-    const today = format(new Date(), "yyyy-MM-dd");
 
-    const { data, error } = await supabase
-      .from("daily_goals")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("category", category)
-      .eq("date", today)
-      .order("created_at", { ascending: true });
+    if (goalType === "weekly") {
+      const weekStart = format(startOfWeek(new Date()), "yyyy-MM-dd");
+      const { data, error } = await supabase
+        .from("weekly_goals")
+        .select("id, title, effort, status")
+        .eq("user_id", user.id)
+        .eq("week_start", weekStart)
+        .order("created_at", { ascending: true });
 
-    if (!error && data) {
-      setGoals(data);
+      if (!error && data) {
+        setGoals(data);
+      }
+    } else {
+      const currentMonth = getMonth(new Date()) + 1;
+      const currentYear = getYear(new Date());
+      const { data, error } = await supabase
+        .from("monthly_goals")
+        .select("id, title, progress, priority")
+        .eq("user_id", user.id)
+        .eq("month", currentMonth)
+        .eq("year", currentYear)
+        .order("created_at", { ascending: true });
+
+      if (!error && data) {
+        setGoals(data);
+      }
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    if (step === 2 && category) {
+    if (step === 2 && goalType) {
       fetchGoals();
     }
-  }, [step, category]);
+  }, [step, goalType]);
 
-  const handleCategorySelect = (cat: Category) => {
-    setCategory(cat);
+  const handleGoalTypeSelect = (type: GoalType) => {
+    setGoalType(type);
     setTimeout(() => setStep(2), 200);
   };
 
   const handleUpdateGoal = async (id: string, title: string) => {
+    const table = goalType === "weekly" ? "weekly_goals" : "monthly_goals";
     await supabase
-      .from("daily_goals")
+      .from(table)
       .update({ title })
       .eq("id", id);
 
@@ -267,16 +231,6 @@ const UpdateGoalsFlow = ({ onClose }: UpdateGoalsFlowProps) => {
     );
     
     toast.success("Goal updated!");
-  };
-
-  const handleDeleteGoal = async (id: string) => {
-    await supabase
-      .from("daily_goals")
-      .delete()
-      .eq("id", id);
-
-    setGoals((prev) => prev.filter((g) => g.id !== id));
-    toast.success("Goal removed");
   };
 
   const goBack = () => {
@@ -300,7 +254,7 @@ const UpdateGoalsFlow = ({ onClose }: UpdateGoalsFlowProps) => {
           <div>
             <h1 className="font-display font-bold">Update Goals</h1>
             <p className="text-xs text-muted-foreground">
-              {step === 1 ? "Select a category" : `${goals.length} goals today`}
+              {step === 1 ? "Select goal type" : `${goals.length} ${goalType} goals`}
             </p>
           </div>
         </div>
@@ -309,7 +263,7 @@ const UpdateGoalsFlow = ({ onClose }: UpdateGoalsFlowProps) => {
       {/* Content */}
       <main className="p-4 max-w-lg mx-auto pb-24">
         <AnimatePresence mode="wait">
-          {/* Step 1: Category Selection */}
+          {/* Step 1: Goal Type Selection */}
           {step === 1 && (
             <motion.div
               key="step1"
@@ -327,37 +281,31 @@ const UpdateGoalsFlow = ({ onClose }: UpdateGoalsFlowProps) => {
                 >
                   <Edit2 className="w-8 h-8 text-emerald-500" />
                 </motion.div>
-                <h2 className="text-xl font-display font-bold">Refine Your Goals</h2>
+                <h2 className="text-xl font-display font-bold">Update Your Goals</h2>
                 <p className="text-muted-foreground text-sm">
-                  Adjust your goals as you grow and learn
+                  Choose which goals you'd like to update
                 </p>
               </div>
 
-              <div className="flex gap-3">
-                <CategoryButton
-                  category="personal"
-                  selected={category === "personal"}
-                  onClick={() => handleCategorySelect("personal")}
+              <div className="flex gap-4">
+                <GoalTypeButton
+                  goalType="weekly"
+                  selected={goalType === "weekly"}
+                  onClick={() => handleGoalTypeSelect("weekly")}
                   delay={0.1}
                 />
-                <CategoryButton
-                  category="professional"
-                  selected={category === "professional"}
-                  onClick={() => handleCategorySelect("professional")}
+                <GoalTypeButton
+                  goalType="monthly"
+                  selected={goalType === "monthly"}
+                  onClick={() => handleGoalTypeSelect("monthly")}
                   delay={0.2}
-                />
-                <CategoryButton
-                  category="fitness"
-                  selected={category === "fitness"}
-                  onClick={() => handleCategorySelect("fitness")}
-                  delay={0.3}
                 />
               </div>
             </motion.div>
           )}
 
           {/* Step 2: Goals List */}
-          {step === 2 && category && (
+          {step === 2 && goalType && (
             <motion.div
               key="step2"
               initial={{ opacity: 0, x: 20 }}
@@ -366,18 +314,12 @@ const UpdateGoalsFlow = ({ onClose }: UpdateGoalsFlowProps) => {
               className="space-y-4"
             >
               <div className="text-center py-4">
-                <div className={cn(
-                  "w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2",
-                  categoryConfig[category].gradient
-                )}>
-                  {(() => {
-                    const Icon = categoryConfig[category].icon;
-                    return <Icon className="w-6 h-6 text-white" />;
-                  })()}
-                </div>
                 <h2 className="text-lg font-display font-bold">
-                  Today's {categoryConfig[category].label} Goals
+                  {goalType === "weekly" ? "Weekly Goals" : "Monthly Goals"}
                 </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Tap the edit icon to update a goal
+                </p>
               </div>
 
               {loading ? (
@@ -394,9 +336,9 @@ const UpdateGoalsFlow = ({ onClose }: UpdateGoalsFlowProps) => {
                     <Sparkles className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="font-medium text-foreground">No goals to update</p>
+                    <p className="font-medium text-foreground">No {goalType} goals found</p>
                     <p className="text-sm text-muted-foreground">
-                      Set some goals first, then come back to refine them
+                      Set some {goalType} goals first, then come back to update them
                     </p>
                   </div>
                   <Button onClick={onClose} variant="outline" className="rounded-xl">
@@ -404,16 +346,15 @@ const UpdateGoalsFlow = ({ onClose }: UpdateGoalsFlowProps) => {
                   </Button>
                 </motion.div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <AnimatePresence>
                     {goals.map((goal, i) => (
-                      <GoalEditCard
+                      <GoalListItem
                         key={goal.id}
                         goal={goal}
-                        category={category}
+                        goalType={goalType}
                         onUpdate={handleUpdateGoal}
-                        onDelete={handleDeleteGoal}
-                        delay={i * 0.1}
+                        delay={i * 0.05}
                       />
                     ))}
                   </AnimatePresence>

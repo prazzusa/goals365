@@ -4,26 +4,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlanningProgress } from "@/hooks/usePlanningProgress";
 import QuarterlyWelcome from "@/components/quarterly/QuarterlyWelcome";
-import QuarterlyVision from "@/components/quarterly/QuarterlyVision";
-import QuarterlyCategories from "@/components/quarterly/QuarterlyCategories";
-import QuarterlyGoals from "@/components/quarterly/QuarterlyGoals";
-import QuarterlyGuidance from "@/components/quarterly/QuarterlyGuidance";
-import QuarterlySummary from "@/components/quarterly/QuarterlySummary";
-
-export type QuarterlyCategory = "personal" | "professional" | "fitness";
-
-export interface QuarterlyGoal {
-  id: string;
-  category: QuarterlyCategory;
-  title: string;
-  whyItMatters?: string;
-  difficulty: "light" | "balanced" | "stretch";
-}
+import VisionFlow, { MonthlyGoal, WeeklyPriority } from "@/components/quarterly/VisionFlow";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { format, startOfWeek, getMonth, getYear } from "date-fns";
 
 export interface QuarterlyPlanningState {
   vision: string;
-  selectedCategories: QuarterlyCategory[];
-  goals: QuarterlyGoal[];
+  monthlyGoals: MonthlyGoal[];
+  weeklyPriorities: WeeklyPriority[];
 }
 
 const QuarterlyPlanning = () => {
@@ -34,14 +23,15 @@ const QuarterlyPlanning = () => {
     loading: progressLoading, 
     isCompleted,
     initializeProgress, 
-    updateQuarterlyStep 
+    updateQuarterlyStep,
+    completeAllPlanning
   } = usePlanningProgress();
   
   const [currentStep, setCurrentStep] = useState(0);
   const [planningState, setPlanningState] = useState<QuarterlyPlanningState>({
     vision: "",
-    selectedCategories: [],
-    goals: [],
+    monthlyGoals: [],
+    weeklyPriorities: [],
   });
   const [initialized, setInitialized] = useState(false);
 
@@ -66,7 +56,6 @@ const QuarterlyPlanning = () => {
         setPlanningState((prev) => ({
           ...prev,
           vision: progress.quarterly_vision || "",
-          selectedCategories: (progress.selected_categories || []) as QuarterlyCategory[],
         }));
       }
       setInitialized(true);
@@ -82,14 +71,73 @@ const QuarterlyPlanning = () => {
   }
 
   const handleNext = async () => {
-    const nextStep = Math.min(currentStep + 1, 5);
+    if (currentStep === 1) {
+      // Save monthly goals and weekly priorities to database
+      await saveGoalsToDatabase();
+    }
+    const nextStep = Math.min(currentStep + 1, 1);
     setCurrentStep(nextStep);
     
     // Save progress to database
     await updateQuarterlyStep(nextStep, {
       vision: planningState.vision,
-      categories: planningState.selectedCategories,
+      categories: [],
     });
+  };
+
+  const saveGoalsToDatabase = async () => {
+    if (!user) return;
+
+    try {
+      const currentMonth = getMonth(new Date()) + 1;
+      const currentYear = getYear(new Date());
+      const weekStart = format(startOfWeek(new Date()), "yyyy-MM-dd");
+
+      // Save monthly goals
+      if (planningState.monthlyGoals.length > 0) {
+        const monthlyGoalsToInsert = planningState.monthlyGoals
+          .filter(g => g.title.trim())
+          .map(goal => ({
+            user_id: user.id,
+            title: goal.title,
+            month: currentMonth,
+            year: currentYear,
+            progress: 0,
+            priority: "medium" as const,
+            status: "todo" as const,
+            completed: false,
+          }));
+
+        if (monthlyGoalsToInsert.length > 0) {
+          await supabase.from("monthly_goals").insert(monthlyGoalsToInsert);
+        }
+      }
+
+      // Save weekly priorities
+      if (planningState.weeklyPriorities.length > 0) {
+        const weeklyGoalsToInsert = planningState.weeklyPriorities
+          .filter(p => p.title.trim())
+          .map(priority => ({
+            user_id: user.id,
+            title: priority.title,
+            week_start: weekStart,
+            effort: "M" as const,
+            status: "todo" as const,
+          }));
+
+        if (weeklyGoalsToInsert.length > 0) {
+          await supabase.from("weekly_goals").upsert(weeklyGoalsToInsert, {
+            onConflict: "id",
+          });
+        }
+      }
+
+      await completeAllPlanning();
+      toast.success("Goals saved successfully!");
+    } catch (error) {
+      console.error("Error saving goals:", error);
+      toast.error("Failed to save goals");
+    }
   };
 
   const handleBack = () => {
@@ -128,48 +176,18 @@ const QuarterlyPlanning = () => {
         );
       case 1:
         return (
-          <QuarterlyVision
+          <VisionFlow
             vision={planningState.vision}
+            monthlyGoals={planningState.monthlyGoals}
+            weeklyPriorities={planningState.weeklyPriorities}
             onVisionChange={(vision) => updatePlanningState({ vision })}
-            onNext={handleNext}
+            onMonthlyGoalsChange={(monthlyGoals) => updatePlanningState({ monthlyGoals })}
+            onWeeklyPrioritiesChange={(weeklyPriorities) => updatePlanningState({ weeklyPriorities })}
+            onNext={async () => {
+              await saveGoalsToDatabase();
+              navigate("/dashboard");
+            }}
             onBack={handleBack}
-          />
-        );
-      case 2:
-        return (
-          <QuarterlyCategories
-            selectedCategories={planningState.selectedCategories}
-            onCategoriesChange={(selectedCategories) =>
-              updatePlanningState({ selectedCategories })
-            }
-            onNext={handleNext}
-            onBack={handleBack}
-          />
-        );
-      case 3:
-        return (
-          <QuarterlyGoals
-            selectedCategories={planningState.selectedCategories}
-            goals={planningState.goals}
-            onGoalsChange={(goals) => updatePlanningState({ goals })}
-            onNext={handleNext}
-            onBack={handleBack}
-          />
-        );
-      case 4:
-        return (
-          <QuarterlyGuidance
-            goals={planningState.goals}
-            onNext={handleNext}
-            onBack={handleBack}
-          />
-        );
-      case 5:
-        return (
-          <QuarterlySummary
-            planningState={planningState}
-            onBack={handleBack}
-            onComplete={() => navigate("/monthly")}
           />
         );
       default:

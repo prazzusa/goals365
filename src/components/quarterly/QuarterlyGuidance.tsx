@@ -1,15 +1,29 @@
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
   ArrowRight,
   Lightbulb,
-  AlertTriangle,
-  CheckCircle2,
-  Scale,
+  Sparkles,
+  Calendar,
+  Check,
+  Target,
+  TrendingUp,
+  Wand2,
+  Loader2,
 } from "lucide-react";
 import { QuarterlyGoal } from "@/pages/QuarterlyPlanning";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface WeeklySuggestion {
+  week: number;
+  focus: string;
+  actions: string[];
+  theme: string;
+}
 
 interface QuarterlyGuidanceProps {
   goals: QuarterlyGoal[];
@@ -17,99 +31,223 @@ interface QuarterlyGuidanceProps {
   onBack: () => void;
 }
 
-interface Insight {
-  type: "success" | "warning" | "tip";
-  icon: React.ElementType;
-  title: string;
-  message: string;
-}
+const generateWeeklySuggestions = (goal: QuarterlyGoal): WeeklySuggestion[] => {
+  const title = goal.title.toLowerCase();
+  const suggestions: WeeklySuggestion[] = [];
+  
+  // Generate 12 weeks of suggestions (one quarter)
+  for (let week = 1; week <= 12; week++) {
+    let focus = "";
+    let actions: string[] = [];
+    let theme = "";
+    
+    if (week <= 3) {
+      theme = "Foundation";
+      if (title.includes("learn") || title.includes("skill")) {
+        focus = "Set up learning environment and resources";
+        actions = [
+          "Research best learning materials",
+          "Create a study schedule",
+          "Set up your workspace",
+        ];
+      } else if (title.includes("fitness") || title.includes("exercise")) {
+        focus = "Establish baseline and routine";
+        actions = [
+          "Take initial measurements",
+          "Create workout schedule",
+          "Prepare equipment and space",
+        ];
+      } else if (title.includes("career") || title.includes("work")) {
+        focus = "Define objectives and plan approach";
+        actions = [
+          "Identify key stakeholders",
+          "Set measurable targets",
+          "Create action timeline",
+        ];
+      } else {
+        focus = "Break down goal into actionable steps";
+        actions = [
+          "Research and gather information",
+          "Create a detailed plan",
+          "Set up tracking system",
+        ];
+      }
+    } else if (week <= 6) {
+      theme = "Build";
+      if (title.includes("learn") || title.includes("skill")) {
+        focus = "Deep dive into core concepts";
+        actions = [
+          "Complete first learning module",
+          "Practice with exercises",
+          "Join study group or community",
+        ];
+      } else if (title.includes("fitness") || title.includes("exercise")) {
+        focus = "Increase intensity and consistency";
+        actions = [
+          "Progressive overload training",
+          "Track performance improvements",
+          "Adjust nutrition plan",
+        ];
+      } else if (title.includes("career") || title.includes("work")) {
+        focus = "Execute key initiatives";
+        actions = [
+          "Launch first project phase",
+          "Network with key contacts",
+          "Deliver on commitments",
+        ];
+      } else {
+        focus = "Make significant progress";
+        actions = [
+          "Complete first major milestone",
+          "Overcome initial challenges",
+          "Build momentum",
+        ];
+      }
+    } else if (week <= 9) {
+      theme = "Accelerate";
+      if (title.includes("learn") || title.includes("skill")) {
+        focus = "Apply knowledge in projects";
+        actions = [
+          "Build a practical project",
+          "Teach others what you've learned",
+          "Tackle advanced topics",
+        ];
+      } else if (title.includes("fitness") || title.includes("exercise")) {
+        focus = "Push boundaries and set new records";
+        actions = [
+          "Try new workout variations",
+          "Increase training volume",
+          "Focus on weak areas",
+        ];
+      } else if (title.includes("career") || title.includes("work")) {
+        focus = "Scale impact and visibility";
+        actions = [
+          "Take on leadership opportunities",
+          "Showcase results and achievements",
+          "Expand your network",
+        ];
+      } else {
+        focus = "Achieve breakthrough progress";
+        actions = [
+          "Complete major milestones",
+          "Solve complex challenges",
+          "Build sustainable systems",
+        ];
+      }
+    } else {
+      theme = "Complete";
+      if (title.includes("learn") || title.includes("skill")) {
+        focus = "Master and integrate knowledge";
+        actions = [
+          "Complete final assessments",
+          "Create portfolio of work",
+          "Plan next learning phase",
+        ];
+      } else if (title.includes("fitness") || title.includes("exercise")) {
+        focus = "Achieve targets and maintain habits";
+        actions = [
+          "Reach fitness milestones",
+          "Establish long-term routine",
+          "Plan next quarter goals",
+        ];
+      } else if (title.includes("career") || title.includes("work")) {
+        focus = "Deliver results and plan ahead";
+        actions = [
+          "Complete key deliverables",
+          "Review and document achievements",
+          "Set goals for next quarter",
+        ];
+      } else {
+        focus = "Finish strong and prepare for next phase";
+        actions = [
+          "Complete remaining milestones",
+          "Review progress and learnings",
+          "Plan continuation strategy",
+        ];
+      }
+    }
+    
+    suggestions.push({
+      week,
+      focus,
+      actions,
+      theme,
+    });
+  }
+  
+  return suggestions;
+};
 
 const QuarterlyGuidance = ({ goals, onNext, onBack }: QuarterlyGuidanceProps) => {
-  // Analyze goals and generate insights
-  const generateInsights = (): Insight[] => {
-    const insights: Insight[] = [];
-    
-    const stretchCount = goals.filter((g) => g.difficulty === "stretch").length;
-    const lightCount = goals.filter((g) => g.difficulty === "light").length;
-    const totalGoals = goals.length;
-    
-    // Check for overload
-    if (stretchCount > 2) {
-      insights.push({
-        type: "warning",
-        icon: AlertTriangle,
-        title: "Ambitious Quarter Ahead",
-        message: `You have ${stretchCount} stretch goals. Consider converting one to "balanced" to avoid burnout.`,
-      });
-    }
+  const [selectedGoal, setSelectedGoal] = useState<QuarterlyGoal | null>(goals[0] || null);
+  const [acceptedSuggestions, setAcceptedSuggestions] = useState<Set<string>>(new Set());
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<Record<string, WeeklySuggestion[]>>({});
 
-    // Check for balance
-    const categories = new Set(goals.map((g) => g.category));
-    if (categories.size === 3 && totalGoals >= 3) {
-      insights.push({
-        type: "success",
-        icon: Scale,
-        title: "Well-Balanced Plan",
-        message: "Great job! You've set goals across all life areas for holistic growth.",
-      });
-    }
-
-    // Check for too many goals
-    if (totalGoals > 6) {
-      insights.push({
-        type: "warning",
-        icon: AlertTriangle,
-        title: "Consider Prioritizing",
-        message: "With more than 6 quarterly goals, focus might become difficult. Consider removing lower-priority items.",
-      });
-    }
-
-    // Encourage if mostly light goals
-    if (lightCount === totalGoals && totalGoals > 0) {
-      insights.push({
-        type: "tip",
-        icon: Lightbulb,
-        title: "Room to Grow",
-        message: "All your goals are light intensity. Consider adding one balanced goal for meaningful progress.",
-      });
-    }
-
-    // Default positive insight if no issues
-    if (insights.length === 0) {
-      insights.push({
-        type: "success",
-        icon: CheckCircle2,
-        title: "Looking Good!",
-        message: "Your quarterly plan is balanced and achievable. You're set for success!",
-      });
-    }
-
-    return insights;
+  const handleAcceptSuggestions = (goalId: string) => {
+    setAcceptedSuggestions(prev => new Set([...prev, goalId]));
   };
 
-  const insights = generateInsights();
+  const generateAIWeeklySuggestions = async (goal: QuarterlyGoal) => {
+    setAiGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('breakdown-goal', {
+        body: {
+          goalTitle: goal.title,
+          goalDescription: goal.whyItMatters,
+          breakdownType: 'weekly'
+        }
+      });
 
-  const getInsightStyles = (type: Insight["type"]) => {
-    switch (type) {
-      case "success":
-        return "bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800";
-      case "warning":
-        return "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800";
-      case "tip":
-        return "bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800";
+      if (error) throw error;
+
+      // Extract weekly suggestions for the goal's quarter
+      const weeklyData = data.weekly?.[goal.quarter || 'Q1'];
+      if (weeklyData) {
+        // Flatten weekly suggestions from all months in the quarter
+        const allWeeks: WeeklySuggestion[] = [];
+        Object.values(weeklyData).forEach((monthData: any) => {
+          Object.entries(monthData).forEach(([week, weekData]: [string, any]) => {
+            allWeeks.push({
+              week: parseInt(week.replace('Week ', '')) || 1,
+              focus: weekData.focus || '',
+              actions: weekData.actions || [],
+              theme: '' // Will be determined by week number
+            });
+          });
+        });
+
+        // Group by theme (Foundation, Build, Accelerate, Complete)
+        allWeeks.forEach((suggestion, index) => {
+          if (suggestion.week <= 3) suggestion.theme = "Foundation";
+          else if (suggestion.week <= 6) suggestion.theme = "Build";
+          else if (suggestion.week <= 9) suggestion.theme = "Accelerate";
+          else suggestion.theme = "Complete";
+        });
+
+        setAiSuggestions(prev => ({ ...prev, [goal.id]: allWeeks }));
+        toast.success("AI weekly suggestions generated!");
+      } else {
+        toast.error("Could not generate weekly breakdown");
+      }
+    } catch (error) {
+      console.error("Failed to generate AI weekly suggestions:", error);
+      toast.error("Failed to generate AI suggestions. Using default suggestions.");
+    } finally {
+      setAiGenerating(false);
     }
   };
 
-  const getIconStyles = (type: Insight["type"]) => {
-    switch (type) {
-      case "success":
-        return "text-green-600";
-      case "warning":
-        return "text-amber-600";
-      case "tip":
-        return "text-blue-600";
+  const selectedSuggestions = selectedGoal 
+    ? (aiSuggestions[selectedGoal.id] || generateWeeklySuggestions(selectedGoal))
+    : [];
+  const groupedSuggestions = selectedSuggestions.reduce((acc, suggestion) => {
+    if (!acc[suggestion.theme]) {
+      acc[suggestion.theme] = [];
     }
-  };
+    acc[suggestion.theme].push(suggestion);
+    return acc;
+  }, {} as Record<string, WeeklySuggestion[]>);
 
   return (
     <div className="min-h-screen flex flex-col px-6 py-8">
@@ -124,101 +262,146 @@ const QuarterlyGuidance = ({ goals, onNext, onBack }: QuarterlyGuidanceProps) =>
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Intelligent Guidance</h1>
-          <p className="text-muted-foreground text-sm">Step 4 of 5</p>
+          <h1 className="text-2xl font-bold text-foreground">Weekly Action Suggestions</h1>
+          <p className="text-muted-foreground text-sm">Step 4 of 4</p>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col max-w-lg mx-auto w-full">
-        {/* Introduction */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center text-muted-foreground mb-6"
         >
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-            <Lightbulb className="w-8 h-8 text-primary" />
-          </div>
-          <p className="text-muted-foreground">
-            Based on your goals, here's what we think...
-          </p>
-        </motion.div>
+          Get creative weekly action plans to keep your momentum going
+        </motion.p>
 
-        {/* Insights */}
-        <div className="flex-1 space-y-4">
-          {insights.map((insight, index) => {
-            const Icon = insight.icon;
-            return (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.15 }}
+        {/* Goal Selector */}
+        {goals.length > 1 && (
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+            {goals.map((goal) => (
+              <button
+                key={goal.id}
+                onClick={() => setSelectedGoal(goal)}
                 className={cn(
-                  "rounded-xl p-5 border",
-                  getInsightStyles(insight.type)
+                  "px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors",
+                  selectedGoal?.id === goal.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
               >
-                <div className="flex items-start gap-4">
-                  <div
-                    className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
-                      insight.type === "success" && "bg-green-100 dark:bg-green-900/50",
-                      insight.type === "warning" && "bg-amber-100 dark:bg-amber-900/50",
-                      insight.type === "tip" && "bg-blue-100 dark:bg-blue-900/50"
-                    )}
-                  >
-                    <Icon className={cn("w-5 h-5", getIconStyles(insight.type))} />
+                {goal.title.split(":")[0]}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* AI Generate Button */}
+        {selectedGoal && !aiSuggestions[selectedGoal.id] && (
+          <div className="mb-6 flex justify-center">
+            <Button
+              variant="outline"
+              onClick={() => generateAIWeeklySuggestions(selectedGoal)}
+              disabled={aiGenerating}
+              className="gap-2"
+            >
+              {aiGenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Generating AI Suggestions...
+                </>
+              ) : (
+                <>
+                  <Wand2 className="w-4 h-4" />
+                  Generate AI Weekly Plan
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* Weekly Suggestions */}
+        {selectedGoal && (
+          <div className="flex-1 space-y-6 overflow-y-auto">
+            {Object.entries(groupedSuggestions).map(([theme, suggestions], themeIndex) => (
+              <motion.div
+                key={theme}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: themeIndex * 0.1 }}
+                className="bg-card rounded-xl p-6 border border-border shadow-sm"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Target className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground mb-1">
-                      {insight.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {insight.message}
+                    <h3 className="font-semibold text-foreground">{theme} Phase</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Weeks {suggestions[0].week} - {suggestions[suggestions.length - 1].week}
                     </p>
                   </div>
                 </div>
-              </motion.div>
-            );
-          })}
-        </div>
 
-        {/* Stats Summary */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="mt-8 grid grid-cols-3 gap-3"
-        >
-          {[
-            { label: "Total Goals", value: goals.length },
-            {
-              label: "Categories",
-              value: new Set(goals.map((g) => g.category)).size,
-            },
-            {
-              label: "Stretch Goals",
-              value: goals.filter((g) => g.difficulty === "stretch").length,
-            },
-          ].map((stat, index) => (
-            <div
-              key={index}
-              className="bg-muted/50 rounded-xl p-4 text-center"
-            >
-              <div className="text-2xl font-bold text-foreground">
-                {stat.value}
-              </div>
-              <div className="text-xs text-muted-foreground">{stat.label}</div>
-            </div>
-          ))}
-        </motion.div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {suggestions.map((suggestion) => (
+                    <div
+                      key={suggestion.week}
+                      className="bg-muted/50 rounded-lg p-4 border border-border/50"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <Calendar className="w-4 h-4 text-primary" />
+                        <span className="font-semibold text-sm text-foreground">
+                          Week {suggestion.week}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {suggestion.focus}
+                      </p>
+                      <ul className="text-xs text-muted-foreground space-y-1.5">
+                        {suggestion.actions.map((action, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <Check className="w-3 h-3 mt-0.5 text-emerald-500 flex-shrink-0" />
+                            <span>{action}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            ))}
+
+            {!acceptedSuggestions.has(selectedGoal.id) && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-border pt-4"
+              >
+                <Button
+                  onClick={() => handleAcceptSuggestions(selectedGoal.id)}
+                  size="lg"
+                  className="w-full rounded-xl"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Use These Weekly Suggestions
+                </Button>
+              </motion.div>
+            )}
+          </div>
+        )}
+
+        {goals.length === 0 && (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            No goals available. Please go back and complete previous steps.
+          </div>
+        )}
 
         {/* Navigation */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.3 }}
           className="mt-8 pb-8"
         >
           <Button
@@ -226,7 +409,7 @@ const QuarterlyGuidance = ({ goals, onNext, onBack }: QuarterlyGuidanceProps) =>
             size="lg"
             className="w-full h-14 text-lg font-semibold rounded-xl"
           >
-            View Quarter Summary
+            Complete & Go to Dashboard
             <ArrowRight className="w-5 h-5 ml-2" />
           </Button>
         </motion.div>

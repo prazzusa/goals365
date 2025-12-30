@@ -1,14 +1,13 @@
 import { motion } from "framer-motion";
-import { Target, RefreshCw, BarChart3 } from "lucide-react";
+import { RefreshCw, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface DashboardActionsProps {
-  onSetGoals: () => void;
   onUpdateGoals: () => void;
   onTrackProgress: () => void;
 }
 
-const DashboardActions = ({ onSetGoals, onUpdateGoals, onTrackProgress }: DashboardActionsProps) => {
+const DashboardActions = ({ onUpdateGoals, onTrackProgress }: DashboardActionsProps) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -16,15 +15,6 @@ const DashboardActions = ({ onSetGoals, onUpdateGoals, onTrackProgress }: Dashbo
       transition={{ delay: 0.4 }}
       className="flex gap-2"
     >
-      <Button
-        onClick={onSetGoals}
-        variant="outline"
-        className="flex-1 h-12 rounded-xl gap-2 border-primary/30 hover:border-primary hover:bg-primary/5"
-      >
-        <Target className="w-4 h-4 text-primary" />
-        <span className="text-sm font-medium">Set Goals</span>
-      </Button>
-      
       <Button
         onClick={onUpdateGoals}
         variant="outline"
