@@ -1,8 +1,6 @@
-import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { X, MessageSquare, Save } from "lucide-react";
+import { X, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -10,8 +8,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 interface GoalDetailDialogProps {
   open: boolean;
@@ -34,54 +30,6 @@ const GoalDetailDialog = ({
   goal,
   onStatusChange,
 }: GoalDetailDialogProps) => {
-  const [comment, setComment] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSavingComment, setIsSavingComment] = useState(false);
-
-  useEffect(() => {
-    if (open && goal.id) {
-      loadComment();
-    }
-  }, [open, goal.id]);
-
-  const loadComment = async () => {
-    setIsLoading(true);
-    try {
-      const table = goal.type === "weekly" ? "weekly_goals" : "monthly_goals";
-      const { data, error } = await supabase
-        .from(table)
-        .select("comments")
-        .eq("id", goal.id)
-        .single();
-
-      if (error) throw error;
-      setComment((data?.comments as string) || "");
-    } catch (error) {
-      console.error("Error loading comment:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSaveComment = async () => {
-    setIsSavingComment(true);
-    try {
-      const table = goal.type === "weekly" ? "weekly_goals" : "monthly_goals";
-      const { error } = await supabase
-        .from(table)
-        .update({ comments: comment.trim() || null } as any)
-        .eq("id", goal.id);
-
-      if (error) throw error;
-      toast.success("Comment saved");
-    } catch (error) {
-      console.error("Error saving comment:", error);
-      toast.error("Failed to save comment");
-    } finally {
-      setIsSavingComment(false);
-    }
-  };
-
   const statusConfig = {
     todo: {
       label: "To Do",
@@ -185,37 +133,6 @@ const GoalDetailDialog = ({
               </div>
             </div>
           )}
-
-          {/* Comments Section */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
-              <MessageSquare className="w-4 h-4" />
-              Comments & Notes
-            </label>
-            {isLoading ? (
-              <div className="min-h-[150px] flex items-center justify-center text-muted-foreground">
-                Loading...
-              </div>
-            ) : (
-              <>
-                <Textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Add your thoughts, notes, or reflections about this goal..."
-                  className="min-h-[150px] resize-none rounded-xl"
-                />
-                <Button
-                  onClick={handleSaveComment}
-                  disabled={isSavingComment}
-                  className="mt-3 rounded-xl"
-                  size="sm"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  {isSavingComment ? "Saving..." : "Save Comment"}
-                </Button>
-              </>
-            )}
-          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -223,4 +140,3 @@ const GoalDetailDialog = ({
 };
 
 export default GoalDetailDialog;
-

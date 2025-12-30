@@ -274,7 +274,7 @@ const QuarterlyCategories = ({
                       animate={{ opacity: isDragging ? 0.5 : 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.9 }}
                       draggable
-                      onDragStart={(e) => handleDragStart(e, goal.id)}
+                      onDragStart={(e: any) => handleDragStart(e, goal.id)}
                       onDragEnd={handleDragEnd}
                       className={cn(
                         "group cursor-move p-3 rounded-lg bg-background border border-border/50 hover:border-border transition-all",
@@ -339,7 +339,7 @@ const QuarterlyCategories = ({
                           animate={{ opacity: isDragging ? 0.5 : 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.9 }}
                           draggable
-                          onDragStart={(e) => handleDragStart(e, goal.id)}
+                          onDragStart={(e: any) => handleDragStart(e, goal.id)}
                           onDragEnd={handleDragEnd}
                           className={cn(
                             "group cursor-move p-3 rounded-lg bg-background border border-border/50 hover:border-border transition-all relative",
