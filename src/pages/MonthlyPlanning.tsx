@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-import { startOfMonth } from "date-fns";
+import { startOfMonth, getMonth, getYear } from "date-fns";
+import { usePlanningProgress } from "@/hooks/usePlanningProgress";
+import { toast } from "sonner";
 import MonthlyWelcome from "@/components/monthly/MonthlyWelcome";
 import MonthSelector from "@/components/monthly/MonthSelector";
 import MonthlyGoalRefinement, { MonthlyGoalStatus } from "@/components/monthly/MonthlyGoalRefinement";
@@ -19,17 +21,30 @@ interface QuarterlyGoal {
 const MonthlyPlanning = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { progress, loading: progressLoading, updateMonthlyStep, moveToMonthly, moveToWeekly } = usePlanningProgress();
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState(startOfMonth(new Date()));
   const [quarterlyGoals, setQuarterlyGoals] = useState<QuarterlyGoal[]>([]);
   const [goalStatuses, setGoalStatuses] = useState<MonthlyGoalStatus[]>([]);
   const [objectives, setObjectives] = useState<MonthlyObjective[]>([]);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/auth");
     }
   }, [user, loading, navigate]);
+
+  // Initialize from progress
+  useEffect(() => {
+    if (!progressLoading && progress && !initialized) {
+      if (progress.current_phase === "quarterly") {
+        moveToMonthly();
+      }
+      setCurrentStep(progress.monthly_step || 0);
+      setInitialized(true);
+    }
+  }, [progress, progressLoading, initialized, moveToMonthly]);
 
   // Fetch quarterly/yearly goals
   useEffect(() => {
@@ -57,7 +72,7 @@ const MonthlyPlanning = () => {
     fetchGoals();
   }, [user]);
 
-  if (loading) {
+  if (loading || progressLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
@@ -65,8 +80,10 @@ const MonthlyPlanning = () => {
     );
   }
 
-  const handleNext = () => {
-    setCurrentStep((prev) => Math.min(prev + 1, 4));
+  const handleNext = async () => {
+    const nextStep = Math.min(currentStep + 1, 4);
+    setCurrentStep(nextStep);
+    await updateMonthlyStep(nextStep);
   };
 
   const handleBack = () => {
@@ -77,8 +94,36 @@ const MonthlyPlanning = () => {
     }
   };
 
-  const handleGoToWeekly = () => {
-    navigate("/weekly");
+  const handleSaveAndGoToWeekly = async () => {
+    if (!user) return;
+
+    try {
+      // Save monthly goals from objectives
+      const monthNum = getMonth(selectedMonth) + 1;
+      const year = getYear(selectedMonth);
+
+      for (const objective of objectives) {
+        const quarterlyGoal = quarterlyGoals.find((g) => g.id === objective.goalId);
+        
+        await supabase.from("monthly_goals").insert({
+          user_id: user.id,
+          title: objective.title,
+          month: monthNum,
+          year,
+          yearly_goal_id: objective.goalId,
+          progress: 0,
+          priority: goalStatuses.find((gs) => gs.goalId === objective.goalId)?.priority || "medium",
+          category: quarterlyGoal?.category || "personal",
+        });
+      }
+
+      toast.success("Monthly plan saved!");
+      await moveToWeekly();
+      navigate("/weekly");
+    } catch (error) {
+      console.error("Error saving monthly plan:", error);
+      toast.error("Failed to save monthly plan");
+    }
   };
 
   const activeGoalIds = goalStatuses.filter((gs) => gs.isActive).map((gs) => gs.goalId);
@@ -124,7 +169,7 @@ const MonthlyPlanning = () => {
           <MonthlySequencing
             selectedMonth={selectedMonth}
             objectives={objectives}
-            onNext={handleGoToWeekly}
+            onNext={handleSaveAndGoToWeekly}
             onBack={handleBack}
           />
         );

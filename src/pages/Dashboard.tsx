@@ -1,59 +1,103 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { AnimatePresence } from "framer-motion";
 import { Heart, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { useOnboarding } from "@/hooks/useOnboarding";
-import { usePremium } from "@/hooks/usePremium";
+import { usePlanningProgress } from "@/hooks/usePlanningProgress";
 import { useMomentum } from "@/hooks/useMomentum";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { MomentumScore } from "@/components/dashboard/MomentumScore";
-import { DailyInsight } from "@/components/dashboard/DailyInsight";
-import { TierBadge } from "@/components/premium/TierBadge";
-import { SubtleUpsell } from "@/components/premium/SubtleUpsell";
-import { FeatureGate } from "@/components/premium/FeatureGate";
-import { UpsellPrompt } from "@/components/premium/UpsellPrompt";
-import GoalActions from "@/components/dashboard/GoalActions";
-import SetGoalsFlow from "@/components/dashboard/SetGoalsFlow";
-import UpdateGoalsFlow from "@/components/dashboard/UpdateGoalsFlow";
-import TrackGoalsFlow from "@/components/dashboard/TrackGoalsFlow";
-import { format } from "date-fns";
+import { format, startOfWeek, getMonth, getYear } from "date-fns";
+
+import MomentumGauge from "@/components/dashboard/MomentumGauge";
+import QuarterFocus from "@/components/dashboard/QuarterFocus";
+import MonthFocus from "@/components/dashboard/MonthFocus";
+import WeekFocus from "@/components/dashboard/WeekFocus";
+import DashboardActions from "@/components/dashboard/DashboardActions";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();
-  const { progress, loading: onboardingLoading, isCompleted } = useOnboarding();
-  const { isPremium, limits, loading: premiumLoading } = usePremium();
-  const { momentum, loading: momentumLoading, refresh: refreshMomentum } = useMomentum();
-  const [dailyGoals, setDailyGoals] = useState<any[]>([]);
-  const [showCategoryUpsell, setShowCategoryUpsell] = useState(false);
-  const [activeFlow, setActiveFlow] = useState<"set" | "update" | "track" | null>(null);
+  const { progress, loading: planningLoading, isCompleted } = usePlanningProgress();
+  const { momentum, loading: momentumLoading } = useMomentum();
+  
+  const [quarterGoals, setQuarterGoals] = useState<any[]>([]);
+  const [monthGoals, setMonthGoals] = useState<any[]>([]);
+  const [weekTasks, setWeekTasks] = useState<any[]>([]);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
   }, [user, authLoading, navigate]);
 
+  // Redirect to planning if not completed
   useEffect(() => {
-    if (!onboardingLoading && user && !isCompleted) navigate("/onboarding");
-  }, [user, onboardingLoading, isCompleted, navigate]);
+    if (!planningLoading && !isCompleted && user) {
+      navigate("/planning");
+    }
+  }, [planningLoading, isCompleted, user, navigate]);
 
+  // Fetch goals data
   useEffect(() => {
-    if (user) fetchTodaysGoals();
-  }, [user]);
-
-  const fetchTodaysGoals = async () => {
     if (!user) return;
-    const today = format(new Date(), "yyyy-MM-dd");
-    const { data } = await supabase
-      .from("daily_goals")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("date", today);
-    setDailyGoals(data || []);
-  };
+
+    const fetchData = async () => {
+      // Fetch quarterly/yearly goals
+      const { data: yearlyData } = await supabase
+        .from("yearly_goals")
+        .select("id, title, category")
+        .eq("user_id", user.id);
+
+      if (yearlyData) {
+        setQuarterGoals(yearlyData.map((g) => ({
+          id: g.id,
+          title: g.title,
+          category: g.category as "personal" | "professional" | "fitness",
+          progress: Math.floor(Math.random() * 100), // Placeholder - would calculate from actual data
+        })));
+      }
+
+      // Fetch monthly goals
+      const currentMonth = getMonth(new Date()) + 1;
+      const currentYear = getYear(new Date());
+      
+      const { data: monthlyData } = await supabase
+        .from("monthly_goals")
+        .select("id, title, progress, priority")
+        .eq("user_id", user.id)
+        .eq("month", currentMonth)
+        .eq("year", currentYear);
+
+      if (monthlyData) {
+        setMonthGoals(monthlyData.map((g) => ({
+          id: g.id,
+          title: g.title,
+          priority: (g.priority || "medium") as "low" | "medium" | "high",
+          progress: g.progress || 0,
+        })));
+      }
+
+      // Fetch weekly tasks
+      const weekStart = format(startOfWeek(new Date()), "yyyy-MM-dd");
+      
+      const { data: weeklyData } = await supabase
+        .from("weekly_goals")
+        .select("id, title, effort, status")
+        .eq("user_id", user.id)
+        .eq("week_start", weekStart);
+
+      if (weeklyData) {
+        setWeekTasks(weeklyData.map((t) => ({
+          id: t.id,
+          title: t.title,
+          effort: (t.effort || "M") as "S" | "M" | "L",
+          status: (t.status || "todo") as "todo" | "in_progress" | "done",
+        })));
+      }
+    };
+
+    fetchData();
+  }, [user]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -61,7 +105,23 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  if (authLoading || onboardingLoading || premiumLoading) {
+  const handleTaskToggle = async (taskId: string) => {
+    const task = weekTasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const nextStatus = task.status === "done" ? "todo" : "done";
+    
+    await supabase
+      .from("weekly_goals")
+      .update({ status: nextStatus })
+      .eq("id", taskId);
+
+    setWeekTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: nextStatus } : t))
+    );
+  };
+
+  if (authLoading || planningLoading || momentumLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -69,34 +129,20 @@ const Dashboard = () => {
     );
   }
 
-  // Count active categories for free tier limit
-  const activeCategories = [
-    (progress?.personal_goals?.length || 0) > 0,
-    (progress?.professional_goals?.length || 0) > 0,
-    (progress?.fitness_goals?.length || 0) > 0,
-  ].filter(Boolean).length;
-
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "there";
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  const getInsightMessage = () => {
-    const completed = dailyGoals.filter(g => g.completed).length;
-    if (dailyGoals.length === 0) return { message: "Start by adding a goal for today. Small steps lead to big changes.", type: "tip" as const };
-    if (completed === dailyGoals.length) return { message: "Amazing! You've completed all your goals today. Take a moment to celebrate! 🎉", type: "celebration" as const };
-    if (completed > 0) return { message: `You're doing great! ${completed} of ${dailyGoals.length} goals done. Keep the momentum going.`, type: "encouragement" as const };
-    return { message: "A fresh start awaits. Pick one small goal to begin with.", type: "gentle" as const };
-  };
-
-  const insight = getInsightMessage();
+  // Calculate momentum score as percentage (0-100)
+  const momentumPercent = Math.round((momentum.score / 1000) * 100);
 
   return (
     <>
       <Helmet>
-        <title>Dashboard - GoalSync</title>
+        <title>Dashboard - Goals365</title>
       </Helmet>
 
-      <div className="min-h-screen bg-background safe-top safe-bottom">
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 safe-top safe-bottom">
         {/* Header */}
         <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
           <div className="flex items-center justify-between p-4">
@@ -110,56 +156,45 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <TierBadge compact onClick={() => navigate("/pricing")} />
               <Button variant="ghost" size="icon" className="rounded-xl" onClick={handleSignOut}>
                 <LogOut className="w-5 h-5" />
               </Button>
             </div>
           </div>
-          
-          {/* Category limit banner for free users */}
-          {!isPremium && activeCategories >= limits.maxCategories && (
-            <div className="px-4 pb-3">
-              <SubtleUpsell 
-                message="Unlock all goal categories" 
-                context="category" 
-              />
-            </div>
-          )}
         </header>
 
         {/* Content */}
-        <main className="p-4 pb-24 space-y-6 max-w-lg mx-auto">
-          {/* Momentum Score */}
-          <FeatureGate
-            feature="hasFullMomentumScore"
-            context="analytics"
-            fallback={
-              <MomentumScore 
-                score={momentum.score} 
-                level={momentum.level} 
-                streakDays={momentum.streakDays} 
-                compact={true}
-              />
-            }
-          >
-            <MomentumScore 
-              score={momentum.score} 
-              level={momentum.level} 
-              streakDays={momentum.streakDays} 
-              weeklyChange={momentum.weeklyChange} 
-            />
-          </FeatureGate>
-
-          {/* Goal Actions - Set, Update, Track */}
-          <GoalActions
-            onSetGoals={() => setActiveFlow("set")}
-            onUpdateGoals={() => setActiveFlow("update")}
-            onTrackGoals={() => setActiveFlow("track")}
+        <main className="p-4 pb-24 space-y-4 max-w-lg mx-auto">
+          {/* Momentum Gauge */}
+          <MomentumGauge 
+            score={momentumPercent} 
+            weeklyChange={momentum.weeklyChange} 
           />
 
-          {/* Daily Insight */}
-          <DailyInsight message={insight.message} type={insight.type} onAction={() => setActiveFlow("set")} actionLabel="Add goal" />
+          {/* Quarter Focus */}
+          <QuarterFocus 
+            goals={quarterGoals}
+            onViewDetails={() => navigate("/planning")}
+          />
+
+          {/* Month Focus */}
+          <MonthFocus 
+            goals={monthGoals}
+            onViewDetails={() => navigate("/monthly")}
+          />
+
+          {/* Week Focus */}
+          <WeekFocus 
+            tasks={weekTasks}
+            onTaskToggle={handleTaskToggle}
+          />
+
+          {/* Action Buttons */}
+          <DashboardActions
+            onSetGoals={() => navigate("/planning")}
+            onUpdateGoals={() => navigate("/monthly")}
+            onTrackProgress={() => navigate("/insights")}
+          />
         </main>
 
         {/* Bottom Nav */}
@@ -169,32 +204,12 @@ const Dashboard = () => {
               <Heart className="w-5 h-5 fill-current" />
               <span className="text-xs mt-1">Home</span>
             </Link>
-            <Link to="/goals" className="flex flex-col items-center p-2 text-muted-foreground hover:text-foreground">
+            <Link to="/insights" className="flex flex-col items-center p-2 text-muted-foreground hover:text-foreground">
               <Settings className="w-5 h-5" />
-              <span className="text-xs mt-1">Goals</span>
+              <span className="text-xs mt-1">Insights</span>
             </Link>
           </div>
         </nav>
-
-        {/* Category upsell modal */}
-        <UpsellPrompt
-          isOpen={showCategoryUpsell}
-          onClose={() => setShowCategoryUpsell(false)}
-          context="category"
-        />
-
-        {/* Goal Flow Modals */}
-        <AnimatePresence>
-          {activeFlow === "set" && (
-            <SetGoalsFlow onClose={() => setActiveFlow(null)} />
-          )}
-          {activeFlow === "update" && (
-            <UpdateGoalsFlow onClose={() => setActiveFlow(null)} />
-          )}
-          {activeFlow === "track" && (
-            <TrackGoalsFlow onClose={() => setActiveFlow(null)} />
-          )}
-        </AnimatePresence>
       </div>
     </>
   );
