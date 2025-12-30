@@ -228,10 +228,13 @@ export type Database = {
       }
       monthly_goals: {
         Row: {
+          category: string | null
           completed: boolean
           created_at: string
           id: string
           month: number
+          priority: string | null
+          progress: number | null
           title: string
           updated_at: string
           user_id: string
@@ -239,10 +242,13 @@ export type Database = {
           yearly_goal_id: string | null
         }
         Insert: {
+          category?: string | null
           completed?: boolean
           created_at?: string
           id?: string
           month: number
+          priority?: string | null
+          progress?: number | null
           title: string
           updated_at?: string
           user_id: string
@@ -250,10 +256,13 @@ export type Database = {
           yearly_goal_id?: string | null
         }
         Update: {
+          category?: string | null
           completed?: boolean
           created_at?: string
           id?: string
           month?: number
+          priority?: string | null
+          progress?: number | null
           title?: string
           updated_at?: string
           user_id?: string
@@ -303,6 +312,48 @@ export type Database = {
           professional_goals?: Json | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      planning_progress: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          current_phase: string
+          id: string
+          monthly_step: number | null
+          quarterly_step: number | null
+          quarterly_vision: string | null
+          selected_categories: string[] | null
+          updated_at: string
+          user_id: string
+          weekly_step: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          current_phase?: string
+          id?: string
+          monthly_step?: number | null
+          quarterly_step?: number | null
+          quarterly_vision?: string | null
+          selected_categories?: string[] | null
+          updated_at?: string
+          user_id: string
+          weekly_step?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          current_phase?: string
+          id?: string
+          monthly_step?: number | null
+          quarterly_step?: number | null
+          quarterly_vision?: string | null
+          selected_categories?: string[] | null
+          updated_at?: string
+          user_id?: string
+          weekly_step?: number | null
         }
         Relationships: []
       }
@@ -386,30 +437,39 @@ export type Database = {
       }
       weekly_goals: {
         Row: {
+          category: string | null
           completed: boolean
           created_at: string
+          effort: string | null
           id: string
           monthly_goal_id: string | null
+          status: string | null
           title: string
           updated_at: string
           user_id: string
           week_start: string
         }
         Insert: {
+          category?: string | null
           completed?: boolean
           created_at?: string
+          effort?: string | null
           id?: string
           monthly_goal_id?: string | null
+          status?: string | null
           title: string
           updated_at?: string
           user_id: string
           week_start: string
         }
         Update: {
+          category?: string | null
           completed?: boolean
           created_at?: string
+          effort?: string | null
           id?: string
           monthly_goal_id?: string | null
+          status?: string | null
           title?: string
           updated_at?: string
           user_id?: string

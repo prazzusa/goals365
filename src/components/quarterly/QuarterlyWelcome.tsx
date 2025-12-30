@@ -6,9 +6,10 @@ import { useAuth } from "@/contexts/AuthContext";
 interface QuarterlyWelcomeProps {
   onStartPlanning: () => void;
   onResume: () => void;
+  hasExistingProgress?: boolean;
 }
 
-const QuarterlyWelcome = ({ onStartPlanning, onResume }: QuarterlyWelcomeProps) => {
+const QuarterlyWelcome = ({ onStartPlanning, onResume, hasExistingProgress = false }: QuarterlyWelcomeProps) => {
   const { user } = useAuth();
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "there";
 
@@ -66,15 +67,17 @@ const QuarterlyWelcome = ({ onStartPlanning, onResume }: QuarterlyWelcomeProps) 
             Start Planning
           </Button>
 
-          <Button
-            onClick={onResume}
-            variant="outline"
-            size="lg"
-            className="w-full h-14 text-lg font-medium rounded-xl border-2"
-          >
-            <RotateCcw className="w-5 h-5 mr-2" />
-            Resume Where I Left Off
-          </Button>
+          {hasExistingProgress && (
+            <Button
+              onClick={onResume}
+              variant="outline"
+              size="lg"
+              className="w-full h-14 text-lg font-medium rounded-xl border-2"
+            >
+              <RotateCcw className="w-5 h-5 mr-2" />
+              Resume Where I Left Off
+            </Button>
+          )}
         </motion.div>
 
         {/* Decorative elements */}

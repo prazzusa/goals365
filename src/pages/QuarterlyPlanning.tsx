@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { usePlanningProgress } from "@/hooks/usePlanningProgress";
 import QuarterlyWelcome from "@/components/quarterly/QuarterlyWelcome";
 import QuarterlyVision from "@/components/quarterly/QuarterlyVision";
 import QuarterlyCategories from "@/components/quarterly/QuarterlyCategories";
@@ -28,12 +29,21 @@ export interface QuarterlyPlanningState {
 const QuarterlyPlanning = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { 
+    progress, 
+    loading: progressLoading, 
+    isCompleted,
+    initializeProgress, 
+    updateQuarterlyStep 
+  } = usePlanningProgress();
+  
   const [currentStep, setCurrentStep] = useState(0);
   const [planningState, setPlanningState] = useState<QuarterlyPlanningState>({
     vision: "",
     selectedCategories: [],
     goals: [],
   });
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -41,7 +51,29 @@ const QuarterlyPlanning = () => {
     }
   }, [user, loading, navigate]);
 
-  if (loading) {
+  // Redirect if planning is completed
+  useEffect(() => {
+    if (!progressLoading && isCompleted) {
+      navigate("/dashboard");
+    }
+  }, [progressLoading, isCompleted, navigate]);
+
+  // Initialize or restore progress
+  useEffect(() => {
+    if (!progressLoading && user && !initialized) {
+      if (progress) {
+        setCurrentStep(progress.quarterly_step || 0);
+        setPlanningState((prev) => ({
+          ...prev,
+          vision: progress.quarterly_vision || "",
+          selectedCategories: (progress.selected_categories || []) as QuarterlyCategory[],
+        }));
+      }
+      setInitialized(true);
+    }
+  }, [progress, progressLoading, user, initialized]);
+
+  if (loading || progressLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
@@ -49,17 +81,35 @@ const QuarterlyPlanning = () => {
     );
   }
 
-  const handleNext = () => {
-    setCurrentStep((prev) => Math.min(prev + 1, 5));
+  const handleNext = async () => {
+    const nextStep = Math.min(currentStep + 1, 5);
+    setCurrentStep(nextStep);
+    
+    // Save progress to database
+    await updateQuarterlyStep(nextStep, {
+      vision: planningState.vision,
+      categories: planningState.selectedCategories,
+    });
   };
 
   const handleBack = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 0));
   };
 
-  const handleResumeProgress = () => {
-    // For now, just start fresh - can implement resume logic later
+  const handleStartPlanning = async () => {
+    if (!progress) {
+      await initializeProgress();
+    }
     handleNext();
+  };
+
+  const handleResumeProgress = () => {
+    // Already restored from progress state, just ensure we're at the right step
+    if (progress && progress.quarterly_step > 0) {
+      setCurrentStep(progress.quarterly_step);
+    } else {
+      handleNext();
+    }
   };
 
   const updatePlanningState = (updates: Partial<QuarterlyPlanningState>) => {
@@ -71,8 +121,9 @@ const QuarterlyPlanning = () => {
       case 0:
         return (
           <QuarterlyWelcome
-            onStartPlanning={handleNext}
+            onStartPlanning={handleStartPlanning}
             onResume={handleResumeProgress}
+            hasExistingProgress={!!progress && progress.quarterly_step > 0}
           />
         );
       case 1:
@@ -118,7 +169,7 @@ const QuarterlyPlanning = () => {
           <QuarterlySummary
             planningState={planningState}
             onBack={handleBack}
-            onComplete={() => navigate("/dashboard")}
+            onComplete={() => navigate("/monthly")}
           />
         );
       default:

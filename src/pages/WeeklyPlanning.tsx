@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-import { startOfWeek } from "date-fns";
+import { startOfWeek, format } from "date-fns";
+import { usePlanningProgress } from "@/hooks/usePlanningProgress";
+import { toast } from "sonner";
 import WeeklyFocus from "@/components/weekly/WeeklyFocus";
 import WeeklyTasks, { WeeklyTask } from "@/components/weekly/WeeklyTasks";
 import TaskStatusTracker from "@/components/weekly/TaskStatusTracker";
@@ -18,16 +20,26 @@ interface ActiveGoal {
 const WeeklyPlanning = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { progress, loading: progressLoading, updateWeeklyStep, completeAllPlanning } = usePlanningProgress();
   const [currentStep, setCurrentStep] = useState(0);
   const [currentWeek] = useState(startOfWeek(new Date()));
   const [activeGoals, setActiveGoals] = useState<ActiveGoal[]>([]);
   const [tasks, setTasks] = useState<WeeklyTask[]>([]);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/auth");
     }
   }, [user, loading, navigate]);
+
+  // Initialize from progress
+  useEffect(() => {
+    if (!progressLoading && progress && !initialized) {
+      setCurrentStep(progress.weekly_step || 0);
+      setInitialized(true);
+    }
+  }, [progress, progressLoading, initialized]);
 
   // Fetch yearly goals as active goals
   useEffect(() => {
@@ -47,7 +59,7 @@ const WeeklyPlanning = () => {
     fetchGoals();
   }, [user]);
 
-  if (loading) {
+  if (loading || progressLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
@@ -55,8 +67,10 @@ const WeeklyPlanning = () => {
     );
   }
 
-  const handleNext = () => {
-    setCurrentStep((prev) => Math.min(prev + 1, 3));
+  const handleNext = async () => {
+    const nextStep = Math.min(currentStep + 1, 3);
+    setCurrentStep(nextStep);
+    await updateWeeklyStep(nextStep);
   };
 
   const handleBack = () => {
@@ -76,8 +90,34 @@ const WeeklyPlanning = () => {
     );
   };
 
-  const handleComplete = () => {
-    navigate("/review");
+  const handleComplete = async () => {
+    if (!user) return;
+
+    try {
+      const weekStart = format(currentWeek, "yyyy-MM-dd");
+
+      // Save weekly goals/tasks
+      for (const task of tasks) {
+        const goal = activeGoals.find((g) => g.id === task.goalId);
+        
+        await supabase.from("weekly_goals").insert({
+          user_id: user.id,
+          title: task.title,
+          week_start: weekStart,
+          monthly_goal_id: null,
+          effort: task.effort,
+          status: task.status,
+          category: goal?.category || "personal",
+        });
+      }
+
+      toast.success("Weekly plan saved! Planning complete.");
+      await completeAllPlanning();
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Error saving weekly plan:", error);
+      toast.error("Failed to save weekly plan");
+    }
   };
 
   const suggestedFocus = activeGoals.length > 0
