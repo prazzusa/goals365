@@ -9,13 +9,14 @@ import {
   Dumbbell,
   Sparkles,
 } from "lucide-react";
-import { QuarterlyCategory, QuarterlyPlanningState } from "@/pages/QuarterlyPlanning";
+import { QuarterlyPlanningState } from "@/pages/QuarterlyPlanning";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
 import { useNavigate } from "react-router-dom";
+
+type QuarterlyCategory = "personal" | "professional" | "fitness";
 
 interface QuarterlySummaryProps {
   planningState: QuarterlyPlanningState;
@@ -47,7 +48,7 @@ const categoryConfig: Record<
   },
 };
 
-const months = ["April", "May", "June"]; // Current quarter months - can be dynamic
+const months = ["April", "May", "June"];
 
 const QuarterlySummary = ({
   planningState,
@@ -59,45 +60,35 @@ const QuarterlySummary = ({
   const [activeMonth, setActiveMonth] = useState(months[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Group goals by category
-  const goalsByCategory = planningState.selectedCategories.reduce(
-    (acc, category) => {
-      acc[category] = planningState.goals.filter((g) => g.category === category);
-      return acc;
-    },
-    {} as Record<QuarterlyCategory, typeof planningState.goals>
-  );
-
-  // Calculate energy distribution
-  const energyDistribution = {
-    light: planningState.goals.filter((g) => g.difficulty === "light").length,
-    balanced: planningState.goals.filter((g) => g.difficulty === "balanced").length,
-    stretch: planningState.goals.filter((g) => g.difficulty === "stretch").length,
-  };
+  // Get goals from the planning state
+  const monthlyGoals = planningState.monthlyGoals || [];
+  const weeklyPriorities = planningState.weeklyPriorities || [];
 
   const handleAutoSplit = async () => {
     if (!user) return;
 
     setIsSubmitting(true);
     try {
-      // Save yearly goals for each goal
-      const yearlyGoalPromises = planningState.goals.map(async (goal) => {
-        const { data, error } = await supabase
-          .from("yearly_goals")
-          .insert({
-            user_id: user.id,
-            category: goal.category,
-            title: goal.title,
-            description: goal.whyItMatters || null,
-          })
-          .select()
-          .single();
+      // Save yearly goals from monthly goals
+      if (monthlyGoals.length > 0) {
+        const yearlyGoalPromises = monthlyGoals.map(async (goal) => {
+          const { data, error } = await supabase
+            .from("yearly_goals")
+            .insert({
+              user_id: user.id,
+              category: "personal",
+              title: goal.title,
+              description: null,
+            })
+            .select()
+            .single();
 
-        if (error) throw error;
-        return data;
-      });
+          if (error) throw error;
+          return data;
+        });
 
-      await Promise.all(yearlyGoalPromises);
+        await Promise.all(yearlyGoalPromises);
+      }
 
       toast.success("Quarterly plan saved successfully!");
       onComplete();
@@ -111,7 +102,6 @@ const QuarterlySummary = ({
 
   return (
     <div className="min-h-screen flex flex-col px-6 py-8">
-      {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <Button
           variant="ghost"
@@ -128,7 +118,6 @@ const QuarterlySummary = ({
       </div>
 
       <div className="flex-1 flex flex-col max-w-lg mx-auto w-full">
-        {/* Month Tabs */}
         <div className="flex gap-2 mb-6">
           {months.map((month) => (
             <button
@@ -146,7 +135,6 @@ const QuarterlySummary = ({
           ))}
         </div>
 
-        {/* Energy Distribution */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -154,8 +142,8 @@ const QuarterlySummary = ({
         >
           {[
             { key: "light", label: "Light", color: "bg-green-500" },
-            { key: "balanced", label: "May", color: "bg-amber-500" },
-            { key: "stretch", label: "June", color: "bg-red-500" },
+            { key: "balanced", label: "Medium", color: "bg-amber-500" },
+            { key: "stretch", label: "Stretch", color: "bg-red-500" },
           ].map((item) => (
             <div
               key={item.key}
@@ -169,48 +157,74 @@ const QuarterlySummary = ({
           ))}
         </motion.div>
 
-        {/* Goals by Category */}
         <div className="flex-1 space-y-4">
-          {Object.entries(goalsByCategory).map(([category, goals], categoryIndex) => {
-            const config = categoryConfig[category as QuarterlyCategory];
-            const Icon = config.icon;
-
-            return (
-              <motion.div
-                key={category}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: categoryIndex * 0.1 }}
-                className="bg-card rounded-xl border p-4"
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", config.bgColor)}>
-                    <Icon className={cn("w-4 h-4", config.color)} />
-                  </div>
-                  <span className="font-semibold text-foreground">{config.title}</span>
+          {/* Monthly Goals */}
+          {monthlyGoals.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-card rounded-xl border p-4"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", categoryConfig.personal.bgColor)}>
+                  <Heart className={cn("w-4 h-4", categoryConfig.personal.color)} />
                 </div>
+                <span className="font-semibold text-foreground">Monthly Goals</span>
+              </div>
 
-                <div className="space-y-2">
-                  {goals.map((goal, goalIndex) => (
-                    <motion.div
-                      key={goal.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: categoryIndex * 0.1 + goalIndex * 0.05 }}
-                      className="flex items-start gap-3"
-                    >
-                      <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Check className="w-3 h-3 text-green-600" />
-                      </div>
-                      <span className="text-sm text-foreground">{goal.title}</span>
-                    </motion.div>
-                  ))}
+              <div className="space-y-2">
+                {monthlyGoals.map((goal, goalIndex) => (
+                  <motion.div
+                    key={goal.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: goalIndex * 0.05 }}
+                    className="flex items-start gap-3"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Check className="w-3 h-3 text-green-600" />
+                    </div>
+                    <span className="text-sm text-foreground">{goal.title}</span>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Weekly Priorities */}
+          {weeklyPriorities.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-card rounded-xl border p-4"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", categoryConfig.professional.bgColor)}>
+                  <Briefcase className={cn("w-4 h-4", categoryConfig.professional.color)} />
                 </div>
-              </motion.div>
-            );
-          })}
+                <span className="font-semibold text-foreground">Weekly Priorities</span>
+              </div>
 
-          {/* Vision Summary */}
+              <div className="space-y-2">
+                {weeklyPriorities.map((priority, idx) => (
+                  <motion.div
+                    key={priority.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.1 + idx * 0.05 }}
+                    className="flex items-start gap-3"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Check className="w-3 h-3 text-blue-600" />
+                    </div>
+                    <span className="text-sm text-foreground">{priority.title}</span>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
           {planningState.vision && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -225,7 +239,6 @@ const QuarterlySummary = ({
           )}
         </div>
 
-        {/* Auto Split Button */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -239,7 +252,7 @@ const QuarterlySummary = ({
             className="w-full h-14 text-lg font-semibold rounded-xl bg-gradient-to-r from-primary to-primary/80"
           >
             <Sparkles className="w-5 h-5 mr-2" />
-            {isSubmitting ? "Saving..." : "Auto Split Into Months"}
+            {isSubmitting ? "Saving..." : "Save & Continue"}
           </Button>
           <Button
             onClick={() => navigate("/monthly")}

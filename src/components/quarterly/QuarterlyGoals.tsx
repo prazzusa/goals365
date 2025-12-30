@@ -4,10 +4,19 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Lightbulb, Check, Sparkles, Calendar, Wand2, Loader2 } from "lucide-react";
 import { AnnualGoal } from "./QuarterlyVision";
 import { QuarterlyGoalAssignment } from "./QuarterlyCategories";
-import { QuarterlyGoal } from "@/pages/QuarterlyPlanning";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+export interface QuarterlyGoal {
+  id: string;
+  category: "personal" | "professional" | "fitness";
+  title: string;
+  whyItMatters?: string;
+  difficulty: "light" | "balanced" | "stretch";
+  quarter?: "Q1" | "Q2" | "Q3" | "Q4";
+  annualGoalId?: string;
+}
 
 interface MonthlySuggestion {
   month: string;
@@ -41,11 +50,9 @@ const generateMonthlySuggestions = (
   const months = quarterMonths[quarter];
   const title = annualGoal.title.toLowerCase();
   
-  // Generate creative suggestions based on goal type
   const suggestions: MonthlySuggestion[] = months.map((month, index) => {
     const phase = index === 0 ? "Foundation" : index === 1 ? "Build" : "Complete";
     
-    // Smart suggestions based on common goal patterns
     let focus = "";
     let milestones: string[] = [];
     
@@ -71,7 +78,6 @@ const generateMonthlySuggestions = (
         index === 2 ? "Review progress and plan next steps" : "",
       ].filter(Boolean);
     } else {
-      // Generic suggestions
       focus = `${phase} your progress`;
       milestones = [
         index === 0 ? "Break down goal into actionable steps" : "",
@@ -80,11 +86,7 @@ const generateMonthlySuggestions = (
       ].filter(Boolean);
     }
     
-    return {
-      month,
-      focus,
-      milestones,
-    };
+    return { month, focus, milestones };
   });
   
   return suggestions;
@@ -113,10 +115,9 @@ const QuarterlyGoals = ({
   };
 
   const handleAcceptSuggestion = (goalId: string, quarter: "Q1" | "Q2" | "Q3" | "Q4", suggestions: MonthlySuggestion[]) => {
-    // Create quarterly goals from suggestions
     const newGoals: QuarterlyGoal[] = suggestions.map((suggestion, index) => ({
       id: crypto.randomUUID(),
-      category: "personal" as const, // Could be determined from goal
+      category: "personal" as const,
       title: `${suggestion.month}: ${suggestion.focus}`,
       whyItMatters: suggestion.milestones.join(", "),
       difficulty: index === 0 ? "light" as const : index === 1 ? "balanced" as const : "stretch" as const,
@@ -143,7 +144,6 @@ const QuarterlyGoals = ({
 
       if (error) throw error;
 
-      // Extract monthly suggestions for the specific quarter
       const monthlyData = data.monthly?.[quarter];
       if (monthlyData) {
         const suggestions: MonthlySuggestion[] = Object.entries(monthlyData).map(([month, data]: [string, any]) => ({
@@ -169,14 +169,8 @@ const QuarterlyGoals = ({
 
   return (
     <div className="min-h-screen flex flex-col px-6 py-8">
-      {/* Header */}
       <div className="flex items-center gap-4 mb-8">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onBack}
-          className="rounded-full"
-        >
+        <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
@@ -194,7 +188,6 @@ const QuarterlyGoals = ({
           We'll help you break down your annual goals into monthly milestones
         </motion.p>
 
-        {/* Quarter Selector */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           {quarters.map((quarter) => {
             const quarterGoals = getGoalsForQuarter(quarter);
@@ -215,7 +208,6 @@ const QuarterlyGoals = ({
           })}
         </div>
 
-        {/* Suggestions for Selected Quarter */}
         {selectedQuarter && (
           <div className="flex-1 space-y-6 overflow-y-auto">
             <AnimatePresence mode="popLayout">
@@ -238,9 +230,7 @@ const QuarterlyGoals = ({
                     className="bg-card rounded-xl p-6 border border-border shadow-sm"
                   >
                     <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-foreground mb-1">
-                        {goal.title}
-                      </h3>
+                      <h3 className="text-lg font-semibold text-foreground mb-1">{goal.title}</h3>
                       {goal.description && (
                         <p className="text-sm text-muted-foreground">{goal.description}</p>
                       )}
@@ -278,19 +268,12 @@ const QuarterlyGoals = ({
                         
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {suggestions.map((suggestion, idx) => (
-                            <div
-                              key={idx}
-                              className="bg-muted/50 rounded-lg p-4 border border-border/50"
-                            >
+                            <div key={idx} className="bg-muted/50 rounded-lg p-4 border border-border/50">
                               <div className="flex items-center gap-2 mb-2">
                                 <Calendar className="w-4 h-4 text-primary" />
-                                <span className="font-semibold text-sm text-foreground">
-                                  {suggestion.month}
-                                </span>
+                                <span className="font-semibold text-sm text-foreground">{suggestion.month}</span>
                               </div>
-                              <p className="text-sm text-muted-foreground mb-2">
-                                {suggestion.focus}
-                              </p>
+                              <p className="text-sm text-muted-foreground mb-2">{suggestion.focus}</p>
                               <ul className="text-xs text-muted-foreground space-y-1">
                                 {suggestion.milestones.map((milestone, mIdx) => (
                                   <li key={mIdx} className="flex items-start gap-2">
@@ -336,7 +319,6 @@ const QuarterlyGoals = ({
           </div>
         )}
 
-        {/* Navigation */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
