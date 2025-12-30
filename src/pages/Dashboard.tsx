@@ -142,7 +142,7 @@ const Dashboard = () => {
         <title>Dashboard - Goals365</title>
       </Helmet>
 
-      <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 safe-top safe-bottom">
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-fitness/5 safe-top safe-bottom">
         {/* Header */}
         <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
           <div className="flex items-center justify-between p-4">
